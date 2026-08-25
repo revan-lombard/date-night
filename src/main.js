@@ -34,6 +34,7 @@ import { createVehicle, DEFAULT_HANDLING } from './car/vehicle.js';
 import { createSkidMarks } from './car/skids.js';
 import { createChaseCamera, DEFAULT_CHASE } from './car/camera.js';
 import { createCharacter, createFallbackCharacter } from './player/character.js';
+import { clone as cloneRig } from 'three/addons/utils/SkeletonUtils.js';
 import { createPlayer } from './player/player.js';
 import { createWaypoint } from './mission/waypoint.js';
 import { createRoute } from './mission/route.js';
@@ -562,12 +563,14 @@ async function init() {
   const animClips = animPack?.animations || [];
 
   // Player = Jonathan (rigged, animated), with a procedural fallback on failure.
+  let playerGltf = null;
   try {
-    const gltf = await loadCharacter();
-    avatar = createCharacter(gltf, {
+    playerGltf = await loadCharacter();
+    avatar = createCharacter(playerGltf, {
       targetHeight: PLAYER_HEIGHT,
       modelYaw: CHARACTERS.player.modelYaw,
-      skinShirt: PEOPLE.player.shirt,
+      skinShirt: PEOPLE.player.shirt, // casual blue at home — the tailor suits him up
+      style: 'suit',
       extraClips: animClips,
     });
   } catch (err) {
@@ -599,8 +602,26 @@ async function init() {
       targetHeight: PLAYER_HEIGHT * 0.94, // a touch shorter than Jonathan
       modelYaw: CHARACTERS.partner.modelYaw,
       skinShirt: PEOPLE.partner.dress,
+      style: 'dress',
       extraClips: animClips,
     });
+  } else if (playerGltf) {
+    // No photo avatar yet — until then, Simone is a styled clone of the same
+    // rig (SkeletonUtils keeps the skinned mesh + clips working): her dress
+    // colour, bare legs, long dark hair. Swaps out the moment partner.glb lands.
+    partnerAvatar = createCharacter(
+      { scene: cloneRig(playerGltf.scene), animations: playerGltf.animations },
+      {
+        targetHeight: PLAYER_HEIGHT * 0.94,
+        modelYaw: CHARACTERS.partner.modelYaw,
+        skinShirt: PEOPLE.partner.dress,
+        style: 'dress',
+        keepMaterials: false, // always re-clothe the clone, even if he's textured
+        extraClips: animClips,
+      },
+    );
+  }
+  if (partnerAvatar) {
     const seat = shops.coffee.seat;
     const sy = terrainHeight(seat.x, seat.z);
     const faceDoor = Math.atan2(shops.coffee.door.x - seat.x, shops.coffee.door.z - seat.z);

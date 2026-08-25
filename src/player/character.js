@@ -47,6 +47,7 @@ export function createCharacter(gltf, opts = {}) {
   const shirt = opts.skinShirt ?? 0x2b6ae8;
 
   const model = gltf.scene;
+  const style = opts.style ?? 'suit';
   let textured = false;
   model.traverse((o) => {
     if (o.isMesh) {
@@ -65,7 +66,7 @@ export function createCharacter(gltf, opts = {}) {
   // Repaint the grey mannequin into a clothed low-poly figure — but NEVER over a
   // photo-avatar's own textured skin/face/clothing.
   const keepMaterials = opts.keepMaterials ?? textured;
-  if (!keepMaterials) clotheModel(model, shirt);
+  if (!keepMaterials) clotheModel(model, shirt, style);
 
   // Normalise to a sensible height, feet on the ground, origin under the body.
   let box = new THREE.Box3().setFromObject(model);
@@ -174,7 +175,7 @@ export function createCharacter(gltf, opts = {}) {
         }
       });
     } else {
-      clotheModel(model, color);
+      clotheModel(model, color, style);
     }
   }
 
@@ -194,14 +195,29 @@ export function createCharacter(gltf, opts = {}) {
  * Recolour a plain (grey) rig into a clothed low-poly figure using per-vertex
  * colours banded by bind-pose height: shoes / trousers / shirt+sleeves / skin.
  * Swaps to a flat-shaded vertex-colour material so it matches the game's look.
- * @param {THREE.Object3D} model @param {number} shirt  shirt colour (hex)
+ * Two styles until the photo-avatars arrive:
+ *   'suit'  — shoes, charcoal trousers, jacket in `primary`, skin, dark hair
+ *   'dress' — heels, bare legs, dress in `primary`, skin, long dark hair
+ * @param {THREE.Object3D} model @param {number} primary @param {'suit'|'dress'} [style]
  */
-function clotheModel(model, shirt) {
+function clotheModel(model, primary, style = 'suit') {
   const skin = new THREE.Color(0xd9a066);
-  const shoe = new THREE.Color(0x1b1d24);
-  const trouser = new THREE.Color(0x33384a);
-  const shirtC = new THREE.Color(shirt);
-  const c = new THREE.Color();
+  const main = new THREE.Color(primary);
+  const bands = style === 'dress'
+    ? [ // her: heels / legs / the dress / skin / hair
+      { to: 0.045, c: new THREE.Color(0x241f26) },
+      { to: 0.42, c: skin },
+      { to: 0.80, c: main },
+      { to: 0.915, c: skin },
+      { to: Infinity, c: new THREE.Color(0x2e1c12) },
+    ]
+    : [ // him: shoes / trousers / jacket / skin / hair
+      { to: 0.055, c: new THREE.Color(0x1b1d24) },
+      { to: 0.50, c: new THREE.Color(0x2a2d36) },
+      { to: 0.82, c: main },
+      { to: 0.925, c: skin },
+      { to: Infinity, c: new THREE.Color(0x3a2a1c) },
+    ];
   model.traverse((o) => {
     if (!o.isMesh || !o.geometry) return;
     const geo = o.geometry;
@@ -212,11 +228,8 @@ function clotheModel(model, shirt) {
     const col = new Float32Array(pos.count * 3);
     for (let i = 0; i < pos.count; i++) {
       const ny = (pos.getY(i) - min.y) / h; // 0 feet .. 1 head
-      if (ny < 0.06) c.copy(shoe);
-      else if (ny < 0.47) c.copy(trouser);
-      else if (ny < 0.80) c.copy(shirtC);
-      else c.copy(skin);
-      col[i * 3] = c.r; col[i * 3 + 1] = c.g; col[i * 3 + 2] = c.b;
+      const band = bands.find((b) => ny < b.to) ?? bands[bands.length - 1];
+      col[i * 3] = band.c.r; col[i * 3 + 1] = band.c.g; col[i * 3 + 2] = band.c.b;
     }
     geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
     o.material = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true });
