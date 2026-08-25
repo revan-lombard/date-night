@@ -220,7 +220,10 @@ function clotheModel(model, primary, style = 'suit') {
     ];
   model.traverse((o) => {
     if (!o.isMesh || !o.geometry) return;
-    const geo = o.geometry;
+    // Rig clones (SkeletonUtils) SHARE geometry — write colours to our own
+    // copy, or dressing Simone repaints Jonathan too (ask me how I know).
+    const geo = o.geometry.clone();
+    o.geometry = geo;
     geo.computeBoundingBox();
     const { min, max } = geo.boundingBox;
     const h = max.y - min.y || 1;
