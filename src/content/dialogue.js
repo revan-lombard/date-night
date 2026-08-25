@@ -1,9 +1,9 @@
 /**
  * @file content/dialogue.js
  * @responsibility The conversation graph — data only, no logic. Six questions
- * then -> 'ending' (§8). Copy is now final prose grounded in "Our Story"
- * (Jonathan & Simone). The highest-love answer in each node is the one that
- * requires actually knowing her / their history.
+ * plus one quiet beat for Ayah, then -> 'ending' (§8). Copy is final prose
+ * grounded in "Our Story" (Jonathan & Simone). The highest-love answer in each
+ * node is the one that requires actually knowing her / their history.
  *
  * Node shape:
  *   { speaker: 'partner'|'player', line: string, mood?: 'warm'|'neutral'|'cool',
@@ -75,9 +75,22 @@ export const NODES = {
     line: 'Can I ask you something real? ... Are you happy? With us?',
     mood: 'neutral',
     choices: [
-      { text: 'Happier than I have any words for. You are home.', love: +10, next: 'q6' },
-      { text: '"Happy enough for a Tuesday."',                    love: -8,  next: 'q6' },
-      { text: 'Take her hand. "Yes. Really."',                   love: +8,  next: 'q6' },
+      { text: 'Happier than I have any words for. You are home.', love: +10, next: 'ayah' },
+      { text: '"Happy enough for a Tuesday."',                    love: -8,  next: 'ayah' },
+      { text: 'Take her hand. "Yes. Really."',                   love: +8,  next: 'ayah' },
+    ],
+  },
+
+  // A quiet beat — Ayah (2020). Her place in the story remains, halo and all.
+  // Every answer is kind: grief is not a quiz.
+  ayah: {
+    speaker: 'partner',
+    line: "You know who would have loved tonight? Ayah. Curled up right under this table.",
+    mood: 'warm',
+    choices: [
+      { text: 'Best girl. Her place in the story stays.',   love: +8, next: 'q6' },
+      { text: '[Say nothing. Squeeze her hand.]',           love: +6, next: 'q6' },
+      { text: "Don't you make me cry at dinner, Simone.",   love: +4, next: 'q6' },
     ],
   },
 

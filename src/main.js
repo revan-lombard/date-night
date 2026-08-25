@@ -26,6 +26,7 @@ import { createShops, makeBouquet, FLOWER_BLOCK, COFFEE_BLOCK } from './world/sh
 import { blockCentre, BLOCK } from './world/layout.js';
 import { loadCityKit, placeCityBuildings } from './world/cityKit.js';
 import { createParkedCars } from './world/parkedcars.js';
+import { createAyah } from './world/ayah.js';
 import { createCollision } from './world/collision.js';
 import { createVehicle, DEFAULT_HANDLING } from './car/vehicle.js';
 import { createSkidMarks } from './car/skids.js';
@@ -116,6 +117,16 @@ const shops = createShops(scene); // walkable florist + coffee shop
 // generated buildings/colliders off them.
 const shopCentres = [blockCentre(FLOWER_BLOCK.ix, FLOWER_BLOCK.iz), blockCentre(COFFEE_BLOCK.ix, COFFEE_BLOCK.iz)];
 const onShopBlock = (lot) => shopCentres.some((c) => Math.abs(lot.x - c.x) < BLOCK / 2 + 2 && Math.abs(lot.z - c.z) < BLOCK / 2 + 2);
+
+// Ayah waits beside the door at Murphy's, halo and all — like the last page
+// of "Our Story". You walk right past her on the way in to the anniversary.
+const ayah = createAyah(
+  scene,
+  shops.coffee.door.x - 2.4,
+  terrainHeight(shops.coffee.door.x - 2.4, shops.coffee.door.z + 2.4) + 0.12,
+  shops.coffee.door.z + 2.4,
+  Math.PI, // facing the street, watching him arrive
+);
 
 // Kerb-side parked cars — keep the spawn, the hero car and both mission stops clear.
 const parked = createParkedCars(scene, terrainHeight, {
@@ -591,6 +602,7 @@ function stepUpdate(dt, input) {
   }
   if (dateActive) avatar?.update(dt); // Jonathan's idle keeps breathing at the table
   bushveld.update(dt); // animals wander even behind the menu — a living backdrop
+  ayah.update(dt); // tail and halo keep their own gentle time
   partnerAvatar?.update(dt); // Simone's idle plays whenever she's in the scene
   // Don't advance the story while the menu/pause screen is up (no call behind
   // the title, no timer ticking while paused).

@@ -43,9 +43,11 @@ Everything personal lives in **`src/content/personal.js`** — search `TODO(conf
    `CALL.lines`, save as `assets/call.mp3`. The text fallback already works.
 5. Read the ending messages in `ENDINGS` out loud once — the best ending now
    carries the letter from the PDF word for word; make the other two yours.
-6. **Ayah** 🐾 — the PDF closes with her (halo and all). Only you can judge
-   whether a gentle mention belongs in the dinner. If yes, one line in
-   `src/content/dialogue.js` (perhaps in q5's warm answer) is all it takes.
+6. **Ayah** 🐾 — she's in: sitting by Murphy's door with her halo
+   (`src/world/ayah.js`), and Simone raises a glass to her in the dinner
+   (the `ayah` node in `src/content/dialogue.js`). Every answer there is
+   kind — grief is not a quiz. Reword her line if you'd like it softer or
+   sillier; delete the node's hop (`q5 → ayah → q6`) to remove the beat.
 
 ## Deploying
 
