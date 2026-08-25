@@ -15,6 +15,8 @@ import { blockCentre, terrainHeight } from './layout.js';
 
 export const FLOWER_BLOCK = { ix: 3, iz: 3 }; // ~(25.5, 25.5)
 export const COFFEE_BLOCK = { ix: 4, iz: 4 }; // ~(76.5, 76.5)
+export const TAILOR_BLOCK = { ix: 1, iz: 4 }; // ~(-76.5, 76.5) — stretches the drive
+export const HOME_BLOCK = { ix: 2, iz: 2 };   // ~(-25.5, -25.5) — where the night begins
 
 const SIZE = 18;      // interior footprint (m)
 const WALL_H = 3.6;
@@ -133,6 +135,64 @@ function buildCoffeeShop(group, colliders, cx, cz) {
 
 const FLOWER_COLORS = [0xff5c8a, 0xffd23f, 0xff764a, 0xb56cff, 0xff3e6c, 0xffffff];
 
+/**
+ * The tailor: pick up tonight's suit. A rail of suits along the wall, a
+ * counter, and a tall mirror with a highlight beam while the objective is up.
+ * @param {number[]} suitColors the wardrobe on display (from personal.js)
+ */
+function buildTailor(group, colliders, cx, cz, suitColors) {
+  const r = room(group, cx, cz, 0x39404d);
+  colliders.push(...r.colliders);
+  sign(group, r, 'TAILOR', 0xf0a828);
+  box(group, cx, r.floorY + 2.6, cz - SIZE / 2 - 0.5, DOOR_W + 2, 0.3, 1.2, flat(0x23262e)); // awning
+  // Counter.
+  box(group, cx - 4, r.floorY + 0.6, cz + SIZE / 2 - 3, 5, 1.2, 1.2, flat(0x4a3b2a));
+  // Suit rail along the east wall: jacket + trouser blocks per colour.
+  (suitColors ?? [0x22304e, 0x191b1f, 0x41464e, 0x5e2230]).forEach((col, i) => {
+    const sx = cx + SIZE / 2 - 1.6;
+    const sz = cz - SIZE / 2 + 3 + i * 3;
+    box(group, sx, r.floorY + 1.55, sz, 0.5, 0.8, 0.9, flat(col));          // jacket
+    box(group, sx, r.floorY + 0.75, sz, 0.35, 0.8, 0.7, flat(col));         // trousers
+    box(group, sx, r.floorY + 2.05, sz, 0.06, 0.2, 0.06, flat(0xb8bcc0));   // hanger
+  });
+  box(group, cx + SIZE / 2 - 1.2, r.floorY + 1.1, cz + 6, 0.2, 2.2, 12.4, flat(0x2b2f38)); // rail back panel
+  // The fitting mirror — this is where you choose.
+  const mirror = { x: cx - 3, z: cz + 1.5 };
+  box(group, mirror.x, r.floorY + 1.25, mirror.z + 0.55, 1.2, 2.5, 0.12, flat(0x23262e)); // frame
+  box(group, mirror.x, r.floorY + 1.25, mirror.z + 0.48, 1.0, 2.3, 0.06, basic(0xbfd4e2)); // glass
+  const highlight = new THREE.Mesh(
+    new THREE.CylinderGeometry(1.5, 1.5, 6, 14, 1, true),
+    new THREE.MeshBasicMaterial({ color: 0xf0a828, transparent: true, opacity: 0.3, side: THREE.DoubleSide, depthWrite: false }),
+  );
+  highlight.position.set(mirror.x, r.floorY + 3, mirror.z);
+  highlight.visible = false;
+  group.add(highlight);
+  return { pos: r.centre, door: r.door, mirror, bounds: r.bounds, floorY: r.floorY, highlight };
+}
+
+/**
+ * Home — Radiokop. A small warm room: bed, wardrobe, rug, and the mirror
+ * where the night starts ("get ready"). The E30 waits on the street outside.
+ */
+function buildHome(group, colliders, cx, cz) {
+  const r = room(group, cx, cz, 0xcbb9a0);
+  colliders.push(...r.colliders);
+  sign(group, r, 'HOME', 0x8fb98f);
+  // Bed with headboard against the east wall.
+  box(group, cx + SIZE / 2 - 2.6, r.floorY + 0.35, cz + 3, 2.4, 0.5, 3.6, flat(0x7a4a3a));
+  box(group, cx + SIZE / 2 - 2.6, r.floorY + 0.66, cz + 3.9, 2.2, 0.22, 1.4, flat(0xe8e2d4)); // pillows
+  box(group, cx + SIZE / 2 - 2.6, r.floorY + 0.62, cz + 2.3, 2.2, 0.18, 2.0, flat(0x8c1f28)); // duvet
+  // Wardrobe along the north wall.
+  box(group, cx - 3, r.floorY + 1.2, cz + SIZE / 2 - 1.4, 3.2, 2.4, 1.0, flat(0x5a4632));
+  // Rug.
+  box(group, cx - 1, r.floorY + 0.03, cz - 1, 4.5, 0.04, 3.2, flat(0x9c8455), false);
+  // The mirror — get ready here.
+  const mirror = { x: cx - 5.5, z: cz - 2 };
+  box(group, mirror.x - 0.55, r.floorY + 1.2, mirror.z, 0.12, 2.4, 1.2, flat(0x3a2f22));
+  box(group, mirror.x - 0.48, r.floorY + 1.2, mirror.z, 0.06, 2.2, 1.0, basic(0xbfd4e2));
+  return { pos: r.centre, door: r.door, mirror, bounds: r.bounds, floorY: r.floorY };
+}
+
 function seeded(s) {
   let v = s >>> 0;
   return () => { v = (v * 1664525 + 1013904223) >>> 0; return v / 0xffffffff; };
@@ -140,17 +200,22 @@ function seeded(s) {
 
 /**
  * @param {THREE.Scene} scene
- * @returns {{ group: THREE.Group, colliders: object[], flower: object, coffee: object }}
+ * @param {{suitColors?: number[]}} [opts]
+ * @returns {{ group: THREE.Group, colliders: object[], flower: object, coffee: object, tailor: object, home: object }}
  */
-export function createShops(scene) {
+export function createShops(scene, opts = {}) {
   const group = new THREE.Group();
   const colliders = [];
   const fc = blockCentre(FLOWER_BLOCK.ix, FLOWER_BLOCK.iz);
   const cc = blockCentre(COFFEE_BLOCK.ix, COFFEE_BLOCK.iz);
+  const tc = blockCentre(TAILOR_BLOCK.ix, TAILOR_BLOCK.iz);
+  const hc = blockCentre(HOME_BLOCK.ix, HOME_BLOCK.iz);
   const flower = buildFlowerShop(group, colliders, fc.x, fc.z);
   const coffee = buildCoffeeShop(group, colliders, cc.x, cc.z);
+  const tailor = buildTailor(group, colliders, tc.x, tc.z, opts.suitColors);
+  const home = buildHome(group, colliders, hc.x, hc.z);
   scene.add(group);
-  return { group, colliders, flower, coffee };
+  return { group, colliders, flower, coffee, tailor, home };
 }
 
 /** A small procedural bouquet (wrap + stems + blossoms) in the chosen colour. */

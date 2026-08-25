@@ -97,6 +97,19 @@ export const MILESTONES = {
 };
 
 /**
+ * The tailor: tonight's suit. Pure style — the colour goes onto his avatar
+ * and that's what he wears to dinner. No wrong answers at a fitting.
+ */
+export const SUITS = {
+  options: [
+    { name: 'The wedding suit — midnight navy', color: 0x22304e },
+    { name: 'All black, like the E30',          color: 0x191b1f },
+    { name: 'Charcoal, open collar',            color: 0x41464e },
+    { name: 'Bold burgundy — feeling brave',    color: 0x5e2230 },
+  ],
+};
+
+/**
  * The florist: bouquet choices and which one is HER favourite. Picking the
  * favourite gives a warmer welcome at the date; the wrong one is a small miss.
  * Set `favourite` to exactly one of the option names.

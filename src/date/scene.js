@@ -58,22 +58,31 @@ export function createDateScene(scene, camera) {
   let active = false;
   let snap = true;    // first update after begin() teleports the camera
 
+  // Walk-in state: Ayah leads him from the door to the table, then they sit.
+  const SEAT_SINK = 0.42;  // the table hides the legs; sunk torsos read seated
+  const WALK_TIME = 4.2;   // seconds, door → table
+  let walkin = null;       // { t, jon, ayahGroup, from, jonTo, ayahTo, onSeated }
+  let jonRef = null;
+
   return {
     /**
-     * Stage the date. Avatars are positioned here; animation mixers stay
-     * owned by the caller (tick their update(dt) while the date runs).
+     * Stage the date with a walk-in: Simone is already seated; Ayah trots from
+     * the door to the table and Jonathan follows; both settle, then onSeated
+     * fires (main starts the dialogue there). Mixers stay owned by the caller.
      * @param {Object} p
-     * @param {{group: THREE.Object3D}} p.jon      the player avatar
-     * @param {{group: THREE.Object3D}} p.sim      Simone's avatar (or stand-in)
-     * @param {{x:number, z:number}} p.table       date-table centre
-     * @param {number} p.floorY                    café floor height
+     * @param {{group: THREE.Object3D, setState?: Function}} p.jon
+     * @param {{group: THREE.Object3D, setState?: Function}} p.sim
+     * @param {THREE.Object3D} p.ayahGroup  the halo dog, borrowed for the night
+     * @param {{x:number, z:number}} p.table @param {number} p.floorY
+     * @param {{x:number, z:number}} p.door  the café doorway (inside edge)
+     * @param {() => void} p.onSeated
      */
-    begin({ jon, sim, table, floorY }) {
-      // Face each other across the table (chairs sit east/west of it).
-      jon.group.position.set(table.x + 1.55, floorY, table.z);
-      jon.group.rotation.y = -Math.PI / 2; // facing west, toward her
-      sim.group.position.set(table.x - 1.55, floorY, table.z);
-      sim.group.rotation.y = Math.PI / 2;  // facing east, toward him
+    begin({ jon, sim, ayahGroup, table, floorY, door, onSeated }) {
+      jonRef = jon;
+      // Simone is already at her seat (west chair), facing his empty one.
+      sim.group.position.set(table.x - 0.95, floorY - SEAT_SINK, table.z);
+      sim.group.rotation.y = Math.PI / 2;
+      sim.setState?.('idle');
 
       key.position.set(table.x, floorY + 2.7, table.z);
       candle.position.set(table.x, floorY + 0.68, table.z);
@@ -81,21 +90,42 @@ export function createDateScene(scene, camera) {
       key.intensity = KEY_INTENSITY;
       candle.visible = true;
 
-      const headY = floorY + 1.5;
+      const seatedHead = floorY + 1.06;
       shots = {
-        // Over Jonathan's right shoulder, looking at her.
+        // Over Jonathan's right shoulder, looking at her (both seated now).
         partner: {
-          pos: new THREE.Vector3(table.x + 2.7, floorY + 1.62, table.z - 1.35),
-          look: new THREE.Vector3(table.x - 1.55, headY - 0.06, table.z),
+          pos: new THREE.Vector3(table.x + 2.3, floorY + 1.35, table.z - 1.15),
+          look: new THREE.Vector3(table.x - 0.95, seatedHead, table.z),
         },
         // Side-on two-shot from the south while he weighs his answer.
         choices: {
-          pos: new THREE.Vector3(table.x + 0.5, floorY + 1.52, table.z - 3.9),
-          look: new THREE.Vector3(table.x + 0.25, floorY + 1.18, table.z),
+          pos: new THREE.Vector3(table.x + 0.45, floorY + 1.3, table.z - 3.4),
+          look: new THREE.Vector3(table.x + 0.2, floorY + 0.95, table.z),
+        },
+        // Watching the two of them come in from the door.
+        walkin: {
+          pos: new THREE.Vector3(table.x + 2.6, floorY + 1.7, table.z + 1.6),
+          look: new THREE.Vector3(door.x, floorY + 0.9, door.z),
         },
       };
-      wantPos.copy(shots.partner.pos);
-      wantLook.copy(shots.partner.look);
+
+      // Start the pair just inside the doorway; Ayah a stride ahead.
+      const from = new THREE.Vector3(door.x, floorY, door.z);
+      jon.group.position.copy(from);
+      jon.group.position.z -= 0.3;
+      jon.setState?.('walk');
+      ayahGroup.position.set(door.x + 0.5, floorY, door.z + 0.8);
+      walkin = {
+        t: 0,
+        jon, ayahGroup, onSeated,
+        floorY,
+        from,
+        jonTo: new THREE.Vector3(table.x + 0.95, floorY, table.z),   // his chair
+        ayahTo: new THREE.Vector3(table.x - 2.1, floorY, table.z - 1.25), // curls up at Simone's side, out of the shot line
+      };
+
+      wantPos.copy(shots.walkin.pos);
+      wantLook.copy(shots.walkin.look);
       active = true;
       snap = true;
       camera.fov = FOV;
@@ -113,6 +143,39 @@ export function createDateScene(scene, camera) {
     /** @param {'warm'|'neutral'|'cool'} mood */
     setMood(mood) {
       moodColor.copy(MOOD_COLORS[mood] ?? MOOD_COLORS.neutral);
+    },
+
+    /** Advance the walk-in on the FIXED timestep (deterministic, pausable) —
+     *  call from the update loop while the date is active. */
+    tick(dt) {
+      if (!active || !walkin) return;
+      {
+        walkin.t += dt;
+        const u = Math.min(1, walkin.t / WALK_TIME);
+        const ease = u * u * (3 - 2 * u);
+        const w = walkin;
+        // Ayah leads by ~15% of the path, with a happy little trot-bounce.
+        const uA = Math.min(1, ease * 1.18);
+        w.ayahGroup.position.lerpVectors(
+          new THREE.Vector3(w.from.x + 0.5, w.floorY, w.from.z + 0.8), w.ayahTo, uA);
+        w.ayahGroup.position.y = w.floorY + (uA < 1 ? Math.abs(Math.sin(walkin.t * 9)) * 0.06 : 0);
+        w.ayahGroup.rotation.y = Math.atan2(w.ayahTo.x - w.from.x, w.ayahTo.z - w.from.z) + (uA >= 1 ? 1.2 : 0);
+        // Jonathan walks a stride behind.
+        const uJ = Math.max(0, Math.min(1, (ease - 0.08) / 0.92));
+        w.jon.group.position.lerpVectors(w.from, w.jonTo, uJ);
+        w.jon.group.rotation.y = Math.atan2(w.jonTo.x - w.from.x, w.jonTo.z - w.from.z);
+        if (u >= 1) {
+          // Take the seat: sink behind the table, face her, settle.
+          w.jon.group.position.set(w.jonTo.x, w.floorY - SEAT_SINK, w.jonTo.z);
+          w.jon.group.rotation.y = -Math.PI / 2;
+          w.jon.setState?.('idle');
+          wantPos.copy(shots.partner.pos);
+          wantLook.copy(shots.partner.look);
+          const done = w.onSeated;
+          walkin = null;
+          done?.();
+        }
+      }
     },
 
     /** Ease the camera + light each render while the date owns the frame. */

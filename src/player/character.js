@@ -133,11 +133,58 @@ export function createCharacter(gltf, opts = {}) {
   /** Scale playback of the current locomotion action (footspeed matching). */
   function setTimeScale(x) { if (current) current.timeScale = x; }
 
+  /**
+   * Put a prop in the right hand so it swings with the arm (bouquets…).
+   * A counter-scaled wrapper keeps the prop's world size regardless of the
+   * rig's units (RPM ≈ metres, Mixamo often cm). Returns false when the rig
+   * has no hand bone — caller should fall back to a body attach.
+   * @param {THREE.Object3D} prop
+   */
+  function holdRight(prop) {
+    let hand = null;
+    model.traverse((o) => {
+      if (!hand && o.isBone && /^(right.?hand|hand.?r)$/i.test(o.name.replace(/[\s_.]/g, ''))) hand = o;
+    });
+    if (!hand) return false;
+    hand.updateWorldMatrix(true, false);
+    const ws = new THREE.Vector3();
+    hand.getWorldScale(ws);
+    const wrap = new THREE.Group();
+    wrap.scale.setScalar(1 / (ws.x || 1));
+    // Nestle into the palm, tilted outward the way you actually carry flowers.
+    prop.position.set(0.02, 0.03, 0.05);
+    prop.rotation.set(0.5, 0, -0.25);
+    wrap.add(prop);
+    hand.add(wrap);
+    return true;
+  }
+
+  /**
+   * Change what he's wearing (the tailor). On a photo-avatar we tint the
+   * outfit materials (never the face); on the mannequin we re-band the
+   * vertex-colour clothing with the new shirt colour.
+   * @param {number} color hex
+   */
+  function setShirt(color) {
+    if (keepMaterials) {
+      model.traverse((o) => {
+        if (!o.isMesh) return;
+        for (const m of Array.isArray(o.material) ? o.material : [o.material]) {
+          if (m && /outfit|shirt|top|jacket|suit/i.test(m.name || '')) m.color.set(color);
+        }
+      });
+    } else {
+      clotheModel(model, color);
+    }
+  }
+
   return {
     group,
     setState,
     setTimeScale,
     jump,
+    holdRight,
+    setShirt,
     update: (dt) => mixer.update(dt),
     animated: true,
   };

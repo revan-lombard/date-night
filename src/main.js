@@ -22,7 +22,7 @@ import { createTerrain, terrainHeight, terrainNormal } from './world/terrain.js'
 import { createCity } from './world/city.js';
 import { createBushveld } from './world/bushveld.js';
 import { createStreetFurniture } from './world/streetfurniture.js';
-import { createShops, makeBouquet, FLOWER_BLOCK, COFFEE_BLOCK } from './world/shops.js';
+import { createShops, makeBouquet, FLOWER_BLOCK, COFFEE_BLOCK, TAILOR_BLOCK, HOME_BLOCK } from './world/shops.js';
 import { blockCentre, BLOCK } from './world/layout.js';
 import { loadCityKit, placeCityBuildings } from './world/cityKit.js';
 import { createParkedCars } from './world/parkedcars.js';
@@ -46,7 +46,7 @@ import { createDateScene } from './date/scene.js';
 import { createDialogue } from './date/dialogue.js';
 import { createLoveMeter } from './date/meter.js';
 import { NODES, START } from './content/dialogue.js';
-import { CAR, PEOPLE, PLACES, CALL, FLORIST, PLAYER_HEIGHT, CHARACTERS, ENDINGS, DATE_OPENERS } from './content/personal.js';
+import { CAR, PEOPLE, PLACES, CALL, FLORIST, SUITS, PLAYER_HEIGHT, CHARACTERS, ENDINGS, DATE_OPENERS } from './content/personal.js';
 
 const ENTER_DIST = 3.8; // metres — how close on foot to enter the car
 const EXIT_MAX_SPEED = 2; // m/s — must be nearly stopped to get out
@@ -111,11 +111,16 @@ createTerrain(scene);
 const city = createCity(scene);
 createStreetFurniture(scene); // sidewalk kerbs, lamp posts, traffic lights
 const bushveld = createBushveld(scene);
-const shops = createShops(scene); // walkable florist + coffee shop
+const shops = createShops(scene, { suitColors: SUITS.options.map((s) => s.color) }); // florist, café, tailor, home
 
 // The florist and coffee-shop blocks are handed to the story buildings, so keep
 // generated buildings/colliders off them.
-const shopCentres = [blockCentre(FLOWER_BLOCK.ix, FLOWER_BLOCK.iz), blockCentre(COFFEE_BLOCK.ix, COFFEE_BLOCK.iz)];
+const shopCentres = [
+  blockCentre(FLOWER_BLOCK.ix, FLOWER_BLOCK.iz),
+  blockCentre(COFFEE_BLOCK.ix, COFFEE_BLOCK.iz),
+  blockCentre(TAILOR_BLOCK.ix, TAILOR_BLOCK.iz),
+  blockCentre(HOME_BLOCK.ix, HOME_BLOCK.iz),
+];
 const onShopBlock = (lot) => shopCentres.some((c) => Math.abs(lot.x - c.x) < BLOCK / 2 + 2 && Math.abs(lot.z - c.z) < BLOCK / 2 + 2);
 
 // Ayah waits beside the door at Murphy's, halo and all — like the last page
@@ -131,7 +136,8 @@ const ayah = createAyah(
 // Kerb-side parked cars — keep the spawn, the hero car and both mission stops clear.
 const parked = createParkedCars(scene, terrainHeight, {
   avoid: [
-    { x: 0, z: 0, r: 14 }, // spawn intersection + the E30
+    { x: shops.home.door.x, z: shops.home.door.z, r: 16 }, // his kerb + the E30
+    { x: shops.tailor.door.x, z: shops.tailor.door.z, r: 18 },
     { x: shops.flower.door.x, z: shops.flower.door.z, r: 18 },
     { x: shops.coffee.door.x, z: shops.coffee.door.z, r: 18 },
   ],
@@ -147,6 +153,7 @@ const world = {
 };
 
 // Mission stops: the florist first, then the coffee shop (the venue).
+const TAILOR_STOP = { x: shops.tailor.door.x, z: shops.tailor.door.z, y: terrainHeight(shops.tailor.door.x, shops.tailor.door.z) };
 const FLORIST_STOP = { x: shops.flower.door.x, z: shops.flower.door.z, y: terrainHeight(shops.flower.door.x, shops.flower.door.z) };
 const VENUE = { x: shops.coffee.door.x, z: shops.coffee.door.z, y: terrainHeight(shops.coffee.door.x, shops.coffee.door.z) };
 const waypoint = createWaypoint(scene, FLORIST_STOP, FLORIST_STOP.y); // director retargets florist -> coffee
@@ -244,7 +251,7 @@ const hud = createHUD(city.minimap);
 
 // --- Mission spine (director created in init once the player exists) -------
 const bus = createBus();
-const timer = createTimer(120);
+const timer = createTimer(190); // three legs now: tailor → florist → Murphy's
 const phone = createPhone();
 let director = null;
 
@@ -261,7 +268,7 @@ function activeXZ() {
   return mode === 'driving' ? vehicle.getState() : (player ? player.getState() : { x: 0, z: 0 });
 }
 
-const isDriving = () => director?.act === 'TO_FLORIST' || director?.act === 'TO_VENUE';
+const isDriving = () => director?.act === 'TO_TAILOR' || director?.act === 'TO_FLORIST' || director?.act === 'TO_VENUE';
 
 // --- Skip-drive (§11): someone's dad may be playing this -------------------
 const SKIP_AFTER = 240; // seconds behind the wheel before the offer appears
@@ -281,6 +288,45 @@ function canPickFlowers() {
   const p = player.getState();
   return Math.hypot(p.x - shops.flower.counter.x, p.z - shops.flower.counter.z) < 3.2;
 }
+
+// --- The tailor: pick tonight's suit at the fitting mirror -----------------
+let hasSuit = false;
+function canPickSuit() {
+  if (mode !== 'onfoot' || hasSuit || director?.act !== 'AT_TAILOR' || !player || pickPanel.isOpen) return false;
+  const p = player.getState();
+  return Math.hypot(p.x - shops.tailor.mirror.x, p.z - shops.tailor.mirror.z) < 3.4;
+}
+function openSuitPick() {
+  pickPanel.open("Tonight's suit", SUITS.options.map((o) => ({ label: o.name, color: o.color })), chooseSuit);
+}
+function chooseSuit(i) {
+  const opt = SUITS.options[i];
+  if (!opt) return;
+  hasSuit = true;
+  avatar?.setShirt?.(opt.color); // he wears it for the rest of the night
+  audio.blip();
+  shops.tailor.highlight.visible = false;
+  director.suitPicked();
+}
+
+// --- Home: get ready at the mirror before the night starts -----------------
+let gotReady = false;
+function canGetReady() {
+  if (mode !== 'onfoot' || gotReady || director?.act !== 'HOME' || !player) return false;
+  const p = player.getState();
+  return Math.hypot(p.x - shops.home.mirror.x, p.z - shops.home.mirror.z) < 3.2;
+}
+function doGetReady() {
+  gotReady = true;
+  audio.blip();
+  const f = hud.fonts;
+  hud.setBanner(
+    `<div style="font:800 24px ${f.cond};letter-spacing:.08em;text-transform:uppercase">Looking sharp.</div>` +
+    `<div style="font:500 14px ${f.body};opacity:.8;margin-top:6px">Ten years tonight. Don't be late.</div>`,
+  );
+  setReadyBanner = 2.4; // seconds before the banner clears and she rings
+}
+let setReadyBanner = 0;
 function openFlowerPick() {
   const opts = FLORIST.options.map((o) => ({ label: `${o.name} — R${FLOWER_COST}`, color: o.color }));
   pickPanel.open(`Pick a bouquet for ${PEOPLE.partner.name}`, opts, chooseBouquet);
@@ -291,10 +337,13 @@ function chooseBouquet(i) {
   money -= FLOWER_COST;
   hasFlowers = true;
   rightFlowers = opt.name === FLORIST.favourite;
-  // The carried bouquet, in the chosen colour, attached to the avatar's hand.
+  // The carried bouquet, in the chosen colour — in his actual hand when the
+  // rig has bones (swings with the arm), else pinned to the body as before.
   bouquet = makeBouquet(opt.color);
-  bouquet.position.set(0.26, 1.0, 0.28);
-  if (carryParent) carryParent.add(bouquet);
+  if (!avatar?.holdRight?.(bouquet)) {
+    bouquet.position.set(0.26, 1.0, 0.28);
+    if (carryParent) carryParent.add(bouquet);
+  }
   hud.setWallet(money);
   hud.setFlowers(true);
   shops.flower.highlight.visible = false;
@@ -343,19 +392,30 @@ function startDate() {
     scene.add(partnerAvatar.group);
   }
   const T = shops.coffee.seat;
-  player?.place(T.x + 1.55, T.z, -Math.PI / 2); // keep the logical pose in sync
-  dateScene.begin({ jon: avatar, sim: partnerAvatar, table: T, floorY: shops.coffee.floorY });
+  player?.place(T.x + 0.95, T.z, -Math.PI / 2); // keep the logical pose in sync
 
   loveMeter = createLoveMeter();
   loveMeter.start({ lateness: director.lateness, hasFlowers, rightFlowers });
-  dateUI.show();
-  dateUI.meterSet(loveMeter.value);
+  audio.dateMusic(true); // the warm loop carries the walk-in and the dinner
 
-  audio.dateMusic(true); // the warm loop carries the whole dinner
-  dialogue = createDialogue({ nodes: NODES, start: START, onNode: presentNode, onEnd: endDate });
-  const opener = !hasFlowers ? DATE_OPENERS.flowersNone
-    : rightFlowers ? DATE_OPENERS.flowersRight : DATE_OPENERS.flowersWrong;
-  dateUI.say(PEOPLE.partner.name.toUpperCase(), opener, () => dialogue.begin());
+  // Walk-in first: Ayah leads him from the door to the table; the dialogue
+  // only starts once he's actually in his seat.
+  dateScene.begin({
+    jon: avatar,
+    sim: partnerAvatar,
+    ayahGroup: ayah.group,
+    table: T,
+    floorY: shops.coffee.floorY,
+    door: { x: shops.coffee.door.x, z: shops.coffee.door.z + 5 }, // inside edge
+    onSeated: () => {
+      dateUI.show();
+      dateUI.meterSet(loveMeter.value);
+      dialogue = createDialogue({ nodes: NODES, start: START, onNode: presentNode, onEnd: endDate });
+      const opener = !hasFlowers ? DATE_OPENERS.flowersNone
+        : rightFlowers ? DATE_OPENERS.flowersRight : DATE_OPENERS.flowersWrong;
+      dateUI.say(PEOPLE.partner.name.toUpperCase(), opener, () => dialogue.begin());
+    },
+  });
 }
 
 /** The conversation is done — show the ending her score earned. */
@@ -385,8 +445,11 @@ function endDate() {
 window.addEventListener('keydown', (e) => { if (dateEnded && e.code === 'KeyR') location.reload(); });
 
 bus.on('act', (a) => {
-  if (a === 'CALL' || a === 'CALLBACK') { hud.setMission('Answer your phone'); hud.setLocation('LAMBTON, GERMISTON'); }
-  else if (a === 'TO_FLORIST') { hud.setMission('Drive to the florist'); hud.setLocation('GERMISTON'); route.setTarget(FLORIST_STOP); shops.flower.highlight.visible = false; }
+  if (a === 'SPAWN') { hud.setMission('Head out to the E30'); hud.setLocation('RADIOKOP'); }
+  else if (a === 'CALL' || a === 'CALLBACK') { hud.setMission('Answer your phone'); hud.setLocation('RADIOKOP'); }
+  else if (a === 'TO_TAILOR') { hud.setMission('Pick up your suit'); hud.setLocation('GERMISTON'); route.setTarget(TAILOR_STOP); }
+  else if (a === 'AT_TAILOR') { hud.setMission('Choose tonight\'s suit'); hud.setLocation('THE TAILOR'); shops.tailor.highlight.visible = true; }
+  else if (a === 'TO_FLORIST') { hud.setMission('Drive to the florist'); hud.setLocation('GERMISTON'); route.setTarget(FLORIST_STOP); shops.tailor.highlight.visible = false; shops.flower.highlight.visible = false; }
   else if (a === 'AT_FLORIST') { hud.setMission(`Buy ${PEOPLE.partner.name}'s favourite flowers`); hud.setLocation('THE FLORIST'); shops.flower.highlight.visible = true; }
   else if (a === 'TO_VENUE') { hud.setMission(`Get to ${PLACES.venue}`); hud.setLocation('GERMISTON'); route.setTarget(VENUE); shops.flower.highlight.visible = false; }
   if (a === 'ARRIVE') {
@@ -431,8 +494,8 @@ const menu = createMenu({
   onStart: () => {
     gameStarted = true; menu.hide();
     audio.unlock(); // no-op without prior user activation; frees pad-only starts
-    hud.setMission('Get in your car');
-    hud.setLocation('LAMBTON, GERMISTON · 2016');
+    hud.setMission('Get ready — ten years tonight');
+    hud.setLocation('RADIOKOP · 17 SEPT 2026');
     hud.setWallet(money); hud.setFlowers(false);
   },
   onSettingsChange: applySettings,
@@ -507,12 +570,14 @@ async function init() {
   }
   player = createPlayer(scene, avatar, { world });
 
-  // Spawn beside the car, facing it, so the opening frames read as "walk to it".
-  const c = vehicle.getState();
-  const spawnX = c.x - 2.6, spawnZ = c.z + 0.5;
-  const faceCar = Math.atan2(c.x - spawnX, c.z - spawnZ);
-  player.place(spawnX, spawnZ, faceCar);
-  mouse.yaw = faceCar; // camera starts behind the player, looking at the car
+  // The night starts at HOME (Radiokop): spawn at the bedroom mirror; the
+  // E30 waits on the street outside the front door.
+  const hm = shops.home.mirror;
+  const hd = shops.home.door;
+  vehicle.reset(hd.x + 4, hd.z - 3.5, Math.PI / 2); // parked at the kerb, nose west
+  const faceMirror = Math.atan2(hm.x - (hm.x + 2.2), 0);
+  player.place(hm.x + 2.2, hm.z, faceMirror);
+  mouse.yaw = faceMirror; // camera opens looking at the mirror
 
   // Optional hero car model (drop public/models/car.glb in to enable).
   const carGltf = await tryLoadCar();
@@ -548,12 +613,12 @@ async function init() {
     collision = createCollision(placed.colliders.concat(shops.colliders, parked.colliders));
   }
 
-  // Mission director: SPAWN → CALL → DRIVE → ARRIVE.
+  // Mission director: HOME → CALL → TAILOR → FLORIST → VENUE → the date.
   director = createDirector({
     phone, waypoint, timer, bus,
     call: { caller: PEOPLE.partner.name, lines: CALL.lines, declineLines: CALL.declineLines },
     getPose: activeXZ,
-    stops: { florist: FLORIST_STOP, coffee: VENUE },
+    stops: { tailor: TAILOR_STOP, florist: FLORIST_STOP, coffee: VENUE },
   });
 
   carryParent = avatar.group; // the bouquet attaches here once bought
@@ -571,9 +636,11 @@ function stepUpdate(dt, input) {
   pickPanel.update(); // controller nav for the bouquet picker
   const frozen = director?.act === 'ARRIVE' || menu?.isOpen || pickPanel.isOpen;
   if (!frozen) {
-    // F rising edge: choose flowers at the counter, else get in / out of the car.
+    // F rising edge: context action — mirror, suit, flowers, else the car.
     if (input.enter && !enterWasDown) {
-      if (canPickFlowers()) openFlowerPick();
+      if (canGetReady()) doGetReady();
+      else if (canPickSuit()) openSuitPick();
+      else if (canPickFlowers()) openFlowerPick();
       else (mode === 'onfoot' ? enterCar : exitCar)();
     }
     if (mode === 'driving') {
@@ -595,12 +662,20 @@ function stepUpdate(dt, input) {
   audio.ring((director?.act === 'CALL' || director?.act === 'CALLBACK') && phone.state === 'ringing');
   audio.ambience(gameStarted && !menu.isOpen);
   enterWasDown = input.enter;
+  // "Looking sharp" beat → clear the banner, and the phone rings.
+  if (setReadyBanner > 0 && !menu.isOpen) {
+    setReadyBanner -= dt;
+    if (setReadyBanner <= 0) { hud.setBanner(null); director?.getReady(); }
+  }
   // Arrival banner → the date, after a beat.
   if (director?.act === 'ARRIVE' && !dateActive && !menu.isOpen) {
     dateCountdown -= dt;
     if (dateCountdown <= 0) startDate();
   }
-  if (dateActive) avatar?.update(dt); // Jonathan's idle keeps breathing at the table
+  if (dateActive) {
+    avatar?.update(dt); // Jonathan's animations keep playing at the dinner
+    dateScene.tick(dt); // the walk-in advances on sim time (deterministic)
+  }
   bushveld.update(dt); // animals wander even behind the menu — a living backdrop
   ayah.update(dt); // tail and halo keep their own gentle time
   partnerAvatar?.update(dt); // Simone's idle plays whenever she's in the scene
@@ -659,7 +734,9 @@ function stepRender(alpha, frameDt) {
     personCam.update(pose, frameDt, mouse.yaw, inside ? Math.max(mouse.pitch, 0.5) : mouse.pitch);
     sunTarget.position.set(pose.x, pose.y || 0, pose.z);
     hud.setSpeed(0, false);
-    if (canPickFlowers()) hud.setPrompt('F|choose the flowers');
+    if (canGetReady()) hud.setPrompt('F|get ready');
+    else if (canPickSuit()) hud.setPrompt('F|try the suits');
+    else if (canPickFlowers()) hud.setPrompt('F|choose the flowers');
     else hud.setPrompt(dist2(pose, carState) <= ENTER_DIST ? `F|get in ${CAR.label}` : null);
     hud.updateRadar(
       { x: pose.x, z: pose.z, heading: pose.heading },
@@ -675,7 +752,7 @@ function stepRender(alpha, frameDt) {
     route.update(p);
     route.setVisible(true);
     hud.setRoute(route.points);
-  } else if (director?.act === 'AT_FLORIST') {
+  } else if (director?.act === 'AT_FLORIST' || director?.act === 'AT_TAILOR') {
     hud.setObjective({ remaining: timer.remaining, lateness: timer.lateness, distance: null });
     hud.setArrow(null);
     route.setVisible(false);
@@ -721,7 +798,9 @@ if (import.meta.env.DEV) {
     get _camera() { return camera; },
     get _mouse() { return mouse; },
     get _cams() { return { carCam, personCam }; },
-    get _stops() { return { florist: FLORIST_STOP, venue: VENUE }; },
+    get _stops() { return { tailor: TAILOR_STOP, florist: FLORIST_STOP, venue: VENUE, home: shops.home }; },
+    getReady() { doGetReady(); },
+    pickSuit(i) { chooseSuit(i); },
     get _phone() { return phone; },
     get _audio() { return audio; },
     set _driveSeconds(v) { driveSeconds = v; }, // fast-forward the skip-drive offer
