@@ -8,8 +8,14 @@
  * Presentation only: no graph logic, no love math. main.js drives it:
  *   say(name, line, done) → offer(labels, cb) → meterTick(value, delta) → …
  *
- * @phase Implemented in Phase 4.
+ * Controller: keyboard + pad both come through readMenu() (confirm advances /
+ * picks, up/down move focus) — poll update() once per frame while the date is
+ * on screen. Number keys 1–3 stay as the direct keyboard shortcut.
+ *
+ * @phase Implemented in Phase 4; controller nav in the ship polish.
  */
+
+import { readMenu } from '../core/input.js';
 
 const COND = "'Arial Narrow','Roboto Condensed','Oswald',system-ui,sans-serif";
 const BODY = "system-ui,'Segoe UI',Roboto,sans-serif";
@@ -157,18 +163,16 @@ export function createDateUI() {
     if (!typing && lineDone) lineBox.appendChild(cue);
   }
 
+  // Direct number keys only — arrows/W/S/Enter/Space and the whole gamepad
+  // come through readMenu() in update(), so a press can't double-fire.
   window.addEventListener('keydown', (e) => {
-    if (!visible) return;
-    if (onPick) {
-      if (/^Digit[1-3]$/.test(e.code)) pick(+e.code.slice(5) - 1);
-      else if (e.code === 'ArrowUp' || e.code === 'KeyW') { focus = (focus - 1 + options.length) % options.length; paint(); }
-      else if (e.code === 'ArrowDown' || e.code === 'KeyS') { focus = (focus + 1) % options.length; paint(); }
-      else if (e.code === 'Enter') pick(focus);
-    } else if (e.code === 'Space' || e.code === 'Enter') {
-      progressLine();
-    }
+    if (!visible || !onPick) return;
+    if (/^Digit[1-3]$/.test(e.code)) pick(+e.code.slice(5) - 1);
   });
   panel.addEventListener('click', () => { if (!onPick) progressLine(); });
+
+  let cardShown = false;
+  let replayCb = null;
 
   return {
     show() { visible = true; root.style.display = 'block'; },
@@ -183,7 +187,7 @@ export function createDateUI() {
       typing = true;
       lineDone = done;
       list.style.display = 'none';
-      hint.textContent = 'Space / click to continue';
+      hint.textContent = 'Space / Ⓐ / click to continue';
       paintLine();
     },
 
@@ -194,7 +198,7 @@ export function createDateUI() {
       focus = 0;
       renderChoices();
       list.style.display = 'flex';
-      hint.textContent = '1–3 / click';
+      hint.textContent = '1–3 / stick + Ⓐ / click';
     },
 
     /** Set the meter without a tick (initial seed). */
@@ -211,11 +215,33 @@ export function createDateUI() {
       paintLine();
     },
 
+    /** Keyboard/controller navigation — poll once per frame while visible.
+     *  (Safe alongside menu/phone/pick panels: only one is ever active.) */
+    update() {
+      if (!visible) return;
+      let m = null;
+      try { m = readMenu?.(); } catch { m = null; }
+      if (!m) return;
+      if (cardShown) {
+        if (m.confirm && replayCb) replayCb();
+        return;
+      }
+      if (onPick) {
+        if (m.up) { focus = (focus - 1 + options.length) % options.length; paint(); }
+        if (m.down) { focus = (focus + 1) % options.length; paint(); }
+        if (m.confirm) pick(focus);
+      } else if (m.confirm) {
+        progressLine();
+      }
+    },
+
     /** Swap the dialogue furniture for a centred ending card.
      *  @param {string} html @param {(() => void)=} onReplay adds a replay button */
     card(html, onReplay) {
       panel.style.display = 'none';
       meterWrap.style.display = 'none';
+      cardShown = true;
+      replayCb = onReplay ?? null;
       cardEl.innerHTML = html;
       if (onReplay) {
         const b = document.createElement('button');

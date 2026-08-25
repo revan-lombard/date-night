@@ -365,7 +365,7 @@ function endDate() {
     `<div style="font:800 30px ${f.cond};letter-spacing:.04em;text-transform:uppercase;margin:8px 0 12px">${end.title}</div>` +
     `<div style="font:500 16px/1.6 ${f.body};max-width:560px;margin:0 auto">${end.message}</div>` +
     `<div style="font:700 14px ${f.cond};letter-spacing:.2em;color:#ff5c8a;margin-top:14px">${scoreLine}</div>` +
-    `<div style="font:600 12px ${f.body};opacity:.5;margin-top:10px">(or press R)</div>`,
+    `<div style="font:600 12px ${f.body};opacity:.5;margin-top:10px">(R · Ⓐ · click)</div>`,
     () => location.reload(),
   );
   dateEnded = true;
@@ -418,6 +418,7 @@ function applySettings(s) {
 const menu = createMenu({
   onStart: () => {
     gameStarted = true; menu.hide();
+    audio.unlock(); // no-op without prior user activation; frees pad-only starts
     hud.setMission('Get in your car');
     hud.setLocation('LAMBTON, GERMISTON · 2016');
     hud.setWallet(money); hud.setFlowers(false);
@@ -438,12 +439,21 @@ function togglePause() {
 window.addEventListener('keydown', (e) => { if (e.code === 'Escape') togglePause(); });
 
 let startWasDown = false;
+let backWasDown = false;
 function pollPauseButton() {
   const pads = navigator.getGamepads?.();
   const gp = pads ? [...pads].find(Boolean) : null;
   const down = !!gp?.buttons?.[9]?.pressed;
   if (down && !startWasDown && !menu.isOpen) togglePause();
   startWasDown = down;
+  // Back/Select = skip the drive, once the offer is up (K on keyboard).
+  const back = !!gp?.buttons?.[8]?.pressed;
+  if (back && !backWasDown && skipOffered() && mode === 'driving' && isDriving()) {
+    const p = waypoint.position;
+    vehicle.reset(p.x - 5, p.z - 5, Math.atan2(5, 5));
+    carCam.snap();
+  }
+  backWasDown = back;
 }
 
 const stats = new Stats();
@@ -593,6 +603,7 @@ function stepRender(alpha, frameDt) {
   if (dateActive) { // the date owns the camera and the frame
     dateScene.update(frameDt);
     dateUI.tick(frameDt);
+    dateUI.update(); // keyboard/controller nav (readMenu edges)
     renderer.render(scene, camera);
     return;
   }
@@ -687,6 +698,7 @@ if (import.meta.env.DEV) {
     get _stops() { return { florist: FLORIST_STOP, venue: VENUE }; },
     get _phone() { return phone; },
     get _audio() { return audio; },
+    set _driveSeconds(v) { driveSeconds = v; }, // fast-forward the skip-drive offer
     step(frames = 60, input = {}) {
       const inp = { ...BASE, ...input };
       for (let i = 0; i < frames; i++) stepUpdate(1 / 60, inp);
