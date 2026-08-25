@@ -49,6 +49,13 @@ Everything personal lives in **`src/content/personal.js`** — search `TODO(conf
    kind — grief is not a quiz. Reword her line if you'd like it softer or
    sillier; delete the node's hop (`q5 → ayah → q6`) to remove the beat.
 
+## Assets
+
+City buildings, interior furniture, food and flowers are from
+[Kenney](https://kenney.nl) (Furniture Kit, Food Kit, Nature Kit, City Kit) —
+CC0, no attribution required, but he's a legend so: thanks Kenney.
+Everything else is procedural three.js.
+
 ## Deploying
 
 `vite.config.js` uses relative paths, so `dist/` works on GitHub Pages,

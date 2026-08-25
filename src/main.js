@@ -27,6 +27,8 @@ import { blockCentre, BLOCK } from './world/layout.js';
 import { loadCityKit, placeCityBuildings } from './world/cityKit.js';
 import { createParkedCars } from './world/parkedcars.js';
 import { createAyah } from './world/ayah.js';
+import { dressShops } from './world/dressing.js';
+import { createCrossing } from './world/crossing.js';
 import { createCollision } from './world/collision.js';
 import { createVehicle, DEFAULT_HANDLING } from './car/vehicle.js';
 import { createSkidMarks } from './car/skids.js';
@@ -112,6 +114,7 @@ const city = createCity(scene);
 createStreetFurniture(scene); // sidewalk kerbs, lamp posts, traffic lights
 const bushveld = createBushveld(scene);
 const shops = createShops(scene, { suitColors: SUITS.options.map((s) => s.color) }); // florist, café, tailor, home
+dressShops(scene, shops); // Kenney CC0 props — best-effort, purely visual
 
 // The florist and coffee-shop blocks are handed to the story buildings, so keep
 // generated buildings/colliders off them.
@@ -178,6 +181,9 @@ const vehicle = createVehicle(scene, CAR, handling, {
   onImpact: (mag) => carCam.addShake(mag),
 });
 const skids = createSkidMarks(scene);
+const crossing = createCrossing(scene);
+let crossingDone = false; // once per night — a beat, not a hazard
+let crossingBanner = 0;
 
 // --- Mouse-look (click canvas to lock pointer) ----------------------------
 const mouse = createMouseLook(renderer.domElement);
@@ -649,7 +655,7 @@ function stepUpdate(dt, input) {
       skids.drop(skid); // lays rubber only while sliding
       audio.engine(Math.abs(vehicle.getSpeed()) / handling.maxSpeed, Math.max(0, input.throttle), dt);
       audio.setScreech(skid.sliding);
-      if (input.horn && !hornWasDown) playHorn();
+      if (input.horn && !hornWasDown) { playHorn(); if (crossing.active) crossing.scatter(); }
       hornWasDown = input.horn;
     } else if (player) {
       player.update(dt, input, mouse.yaw);
@@ -658,6 +664,33 @@ function stepUpdate(dt, input) {
   }
   if (mode !== 'driving') { audio.engineOff(); audio.setScreech(false); }
   if (mode === 'driving' && isDriving() && !menu.isOpen) driveSeconds += dt; // fuels the skip-drive offer
+
+  // The random beat of the night: on the final leg, a herd of impala picks
+  // the worst moment to cross ~45 m up the road. Horn to hurry them along.
+  if (!crossingDone && director?.act === 'TO_VENUE' && mode === 'driving' && Math.abs(vehicle.getSpeed()) > 8) {
+    const pts = route.points;
+    if (pts && pts.length > 2) {
+      let acc = 0;
+      for (let i = 1; i < pts.length; i++) {
+        const dx = pts[i].x - pts[i - 1].x, dz = pts[i].z - pts[i - 1].z;
+        const seg = Math.hypot(dx, dz);
+        if (acc + seg >= 45) {
+          const t = (45 - acc) / seg;
+          const px = pts[i - 1].x + dx * t, pz = pts[i - 1].z + dz * t;
+          crossing.trigger({ x: px, z: pz }, { x: dx / seg, z: dz / seg }, terrainHeight);
+          const f = hud.fonts;
+          hud.setBanner(`<div style="font:800 20px ${f.cond};letter-spacing:.1em;text-transform:uppercase">🦌 Impala crossing!</div>` +
+            `<div style="font:500 13px ${f.body};opacity:.8;margin-top:4px">Easy on the throttle — or lean on the horn.</div>`);
+          crossingBanner = 3.2;
+          crossingDone = true;
+          break;
+        }
+        acc += seg;
+      }
+    }
+  }
+  if (crossingBanner > 0) { crossingBanner -= dt; if (crossingBanner <= 0) hud.setBanner(null); }
+  crossing.update(dt, mode === 'driving' ? vehicle.getState() : null);
   // Ringtone while she's calling; night hum once the game is running.
   audio.ring((director?.act === 'CALL' || director?.act === 'CALLBACK') && phone.state === 'ringing');
   audio.ambience(gameStarted && !menu.isOpen);
