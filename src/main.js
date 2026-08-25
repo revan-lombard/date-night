@@ -365,7 +365,8 @@ function endDate() {
     `<div style="font:800 30px ${f.cond};letter-spacing:.04em;text-transform:uppercase;margin:8px 0 12px">${end.title}</div>` +
     `<div style="font:500 16px/1.6 ${f.body};max-width:560px;margin:0 auto">${end.message}</div>` +
     `<div style="font:700 14px ${f.cond};letter-spacing:.2em;color:#ff5c8a;margin-top:14px">${scoreLine}</div>` +
-    `<div style="font:600 12px ${f.body};opacity:.5;margin-top:10px">(R · Ⓐ · click)</div>`,
+    `<div style="font:700 12px ${f.cond};letter-spacing:.26em;color:${f.gold};text-transform:uppercase;margin-top:14px">Campaign status: ongoing · To be continued</div>` +
+    `<div style="font:600 12px ${f.body};opacity:.5;margin-top:8px">(R · Ⓐ · click)</div>`,
     () => location.reload(),
   );
   dateEnded = true;
@@ -596,8 +597,21 @@ function stepUpdate(dt, input) {
   if (director && !menu.isOpen) director.update(dt);
 }
 
+let titleAngle = 0.6; // start on a pleasing three-quarter view of the city
+
 function stepRender(alpha, frameDt) {
   hud.setVisible(gameStarted && !menu.isOpen && !dateActive); // no HUD behind menus or the dinner
+  // Attract mode: while the title is up, drift slowly around the dusk city —
+  // the menu floats over living key art instead of a black void (GTA-style).
+  if (!gameStarted && menu.isOpen) {
+    titleAngle += frameDt * 0.035;
+    const cy = terrainHeight(0, 0);
+    // Low and slow — skyline against the dusk band, not a rooftop survey.
+    camera.position.set(Math.sin(titleAngle) * 130, cy + 21, Math.cos(titleAngle) * 130);
+    camera.lookAt(0, cy + 15, 0);
+    renderer.render(scene, camera);
+    return;
+  }
   mouse.applyStick(lastLook.x, lastLook.y, frameDt); // right-stick free-look
   pollPauseButton();
   if (dateActive) { // the date owns the camera and the frame
@@ -909,6 +923,29 @@ function buildHeroLights(model) {
   beam.target.position.set(0, -0.4, noseZ + 16);
   rig.add(beam);
   rig.add(beam.target);
+
+  // His actual number plate (the poster's E30 wears "E30 · GP").
+  const plateCanvas = document.createElement('canvas');
+  plateCanvas.width = 128;
+  plateCanvas.height = 32;
+  const pc = plateCanvas.getContext('2d');
+  pc.fillStyle = '#f2efe4';
+  pc.fillRect(0, 0, 128, 32);
+  pc.strokeStyle = '#15161a';
+  pc.lineWidth = 3;
+  pc.strokeRect(1, 1, 126, 30);
+  pc.fillStyle = '#15161a';
+  pc.font = "800 20px 'Arial Narrow', sans-serif";
+  pc.textAlign = 'center';
+  pc.textBaseline = 'middle';
+  pc.fillText('E30 · GP', 64, 18);
+  const plate = new THREE.Mesh(
+    new THREE.PlaneGeometry(0.44, 0.11),
+    new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(plateCanvas) }),
+  );
+  plate.position.set(0, 0.42, tailZ - 0.015);
+  plate.rotation.y = Math.PI; // face the chase camera
+  rig.add(plate);
 
   vehicle.tilt.add(rig);
   return {

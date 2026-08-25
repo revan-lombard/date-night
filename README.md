@@ -34,14 +34,18 @@ Everything personal lives in **`src/content/personal.js`** — search `TODO(conf
 1. **The running joke** (`MILESTONES.runningJoke`, and q4 in
    `src/content/dialogue.js`) — the single highest-value line in the game.
 2. **Her favourites** — food, drink, song, and especially **flower**
-   (`FLORIST.favourite` gates the bouquet bonus; Proteas is a guess).
+   (`FLORIST.favourite` gates the bouquet bonus; currently **Sunflowers**,
+   because the proposal in "Our Story" was dressed in them — confirm).
 3. **Simone's avatar** — make one from a photo at readyplayer.me and drop it
    in as `public/models/partner.glb` (plus the free RPM animation pack as
    `public/models/anims.glb`). The pink stand-in retires itself automatically.
 4. **The call recording** — secretly record her reading the three lines in
    `CALL.lines`, save as `assets/call.mp3`. The text fallback already works.
-5. Read the ending messages in `ENDINGS` out loud once — they're adapted from
-   the real letter; make them yours.
+5. Read the ending messages in `ENDINGS` out loud once — the best ending now
+   carries the letter from the PDF word for word; make the other two yours.
+6. **Ayah** 🐾 — the PDF closes with her (halo and all). Only you can judge
+   whether a gentle mention belongs in the dinner. If yes, one line in
+   `src/content/dialogue.js` (perhaps in q5's warm answer) is all it takes.
 
 ## Deploying
 

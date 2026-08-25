@@ -63,8 +63,10 @@ export function createPhone() {
     '<div id="ph-ico" class="ph-ico-ring" style="margin-left:auto;font-size:24px">📞</div></div>' +
     // Ringing actions.
     '<div id="ph-actions" style="display:flex;gap:12px;margin-top:6px">' +
-    '<button id="ph-answer" class="ph-btn ph-answer" type="button">📞 Answer</button>' +
-    '<button id="ph-decline" class="ph-btn ph-decline" type="button">✗ Decline</button></div>' +
+    '<button id="ph-answer" class="ph-btn ph-answer" type="button">📞 Answer' +
+    '<span style="display:block;font-size:11px;font-weight:600;opacity:.75;margin-top:2px">Enter · Ⓐ</span></button>' +
+    '<button id="ph-decline" class="ph-btn ph-decline" type="button">✗ Decline' +
+    '<span style="display:block;font-size:11px;font-weight:600;opacity:.75;margin-top:2px">Esc · Ⓑ</span></button></div>' +
     // Subtitles (shown after Answer).
     '<div id="ph-sub" style="display:none;font-size:18px;line-height:1.4;min-height:2.6em"></div>' +
     '<div id="ph-hint" style="display:none;text-align:right;font-size:12px;opacity:.5;margin-top:6px">click / Enter to continue</div>';
@@ -155,6 +157,9 @@ export function createPhone() {
       subEl.textContent = '';
       hintEl.style.display = 'none';
       root.style.display = 'block';
+      // Free the cursor — mouse-look holds pointer lock, which would hide the
+      // pointer and make Answer/Decline unclickable (keys still work anyway).
+      document.exitPointerLock?.();
     },
 
     update(dt) {

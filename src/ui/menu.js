@@ -345,9 +345,9 @@ function injectStyles() {
 .dn-menu{position:fixed;inset:0;z-index:120;display:flex;align-items:center;justify-content:center;
   font-family:system-ui,Segoe UI,Roboto,sans-serif;color:#ece7db;padding:24px;box-sizing:border-box;
   background:
-    radial-gradient(120% 80% at 50% 108%, rgba(240,168,40,.42), rgba(240,168,40,0) 55%),
-    radial-gradient(90% 55% at 50% 100%, rgba(200,90,20,.35), rgba(200,90,20,0) 60%),
-    linear-gradient(180deg,#0a0906 0%,#12100b 45%,#1a140c 72%,#241708 100%);
+    radial-gradient(120% 80% at 50% 108%, rgba(240,168,40,.30), rgba(240,168,40,0) 55%),
+    radial-gradient(90% 55% at 50% 100%, rgba(200,90,20,.25), rgba(200,90,20,0) 60%),
+    linear-gradient(180deg, rgba(10,9,6,.66) 0%, rgba(18,16,11,.42) 45%, rgba(26,20,12,.34) 72%, rgba(36,23,8,.30) 100%);
   animation:dn-fade .35s ease both;}
 .dn-menu.dn-reduce{animation:none}
 @media (prefers-reduced-motion:reduce){.dn-menu{animation:none}}

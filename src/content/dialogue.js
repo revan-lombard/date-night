@@ -53,7 +53,7 @@ export const NODES = {
     choices: [
       { text: 'Pilanesberg. Our first one. The lion at sunrise.', love: +8, next: 'q4' },
       { text: 'They were all good, really.',                      love: +1, next: 'q4' },
-      { text: 'Cape Town — for the drive, not the city.',         love: +4, next: 'q4' },
+      { text: 'Ballito — the drive down, windows open.',          love: +4, next: 'q4' },
     ],
   },
 

@@ -89,7 +89,9 @@ export const MILESTONES = {
     food:  'a proper steak',        // TODO(confirm)
     drink: 'a glass of red',        // TODO(confirm)
     song:  'our song',              // TODO(confirm)
-    flower: 'Proteas',              // SA national flower — tasteful default; TODO(confirm)
+    // The proposal setup (18 Dec 2021, Pretoria) was dressed in SUNFLOWERS —
+    // the strongest signal in "Our Story". TODO(confirm) all the same.
+    flower: 'Sunflowers',
   },
 };
 
@@ -106,7 +108,7 @@ export const FLORIST = {
     { name: 'White Lilies', color: 0xf3f0ea },
     { name: 'Sunflowers', color: 0xffcf3f },
   ],
-  favourite: 'Proteas', // TODO(confirm) — SA national flower, tasteful default
+  favourite: 'Sunflowers', // the proposal was dressed in them — TODO(confirm)
 };
 
 /**
@@ -114,18 +116,20 @@ export const FLORIST = {
  * flowers state; the love deltas themselves live in date/meter.js.
  */
 export const DATE_OPENERS = {
-  flowersRight: 'Proteas. You actually remembered my favourite. Okay — sit, sit.',
+  flowersRight: `${FLORIST.favourite}. You actually remembered my favourite. Okay — sit, sit.`,
   flowersWrong: "Flowers! Not... quite my favourite, but they're lovely. Sit down, you.",
   flowersNone: 'No flowers, hey. Ten years and empty hands. Sit down anyway.',
 };
 
-// Her anniversary message, adapted from the real letter that closes "Our Story".
+// Her anniversary message — the real letter that closes "Our Story", verbatim.
 const ANNIVERSARY_LETTER =
-  "Ten years ago we started this journey together — not knowing exactly where " +
-  "it would lead, just knowing we wanted to do it side by side. Thank you for " +
-  "being my teammate, my best friend and my biggest supporter. Here's to our " +
-  "story, our team, our mission. I can't wait to keep writing the next chapters " +
-  "with you. I love you.";
+  "Ten years ago, we started this journey together — not knowing exactly where " +
+  "it would lead, but knowing we wanted to do it side by side. And what a " +
+  "journey it's been. Thank you for being my teammate, my best friend, and my " +
+  "biggest supporter. Through every win and every challenge, you've been my " +
+  "constant. I'm so proud of what we've built together and even more excited " +
+  "for all that's still ahead. Here's to our story, our team, our mission. " +
+  "I can't wait to keep writing the next chapters with you. I love you.";
 
 export const ENDINGS = {
   best: { title: 'Best night in ages', message: ANNIVERSARY_LETTER },
