@@ -35,6 +35,7 @@ export const CAR = {
   modelVariant: 0,    // which car to keep when the GLB holds several (sorted by X): 0 = the plain road car
   modelPaint: { 'Material.001': 0x14161a }, // repaint the road car's red body to his near-black
   modelWheels: ['Circle004', 'Circle005'],  // node-name prefixes of the axle/wheel groups (they spin with speed)
+  modelTailMats: ['Material.004', 'Material.006'], // the GLB's own tail-lamp materials — glow dim, flare on braking
 };
 
 /** Real-world player height in metres (used to scale the character model). */

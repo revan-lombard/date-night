@@ -133,8 +133,12 @@ export function createAudio() {
      */
     engine(speedRatio, throttle, dt) {
       if (!engOscA) return;
-      // Revs chase speed with a lag; a hair of throttle blip on top.
-      const target = 55 + speedRatio * 165 + throttle * 14;
+      // Five fake gears: revs climb within each gear and drop on the "shift" —
+      // the single cheapest way to make a synth engine feel like a real car.
+      const GEARS = 5;
+      const gear = Math.min(GEARS - 1, Math.floor(speedRatio * GEARS));
+      const phase = speedRatio * GEARS - gear;
+      const target = 58 + gear * 9 + phase * 115 + throttle * 12;
       engFreq += (target - engFreq) * Math.min(1, 6 * dt);
       engOscA.frequency.value = engFreq;
       engOscB.frequency.value = engFreq * 1.012; // detune = the growl

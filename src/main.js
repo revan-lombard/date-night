@@ -903,31 +903,34 @@ function rigModelWheels(model, prefixes) {
 }
 
 /**
- * Head/tail lights for the hero car, placed off its fitted bounding box:
- * warm emissive headlight blocks + a single spotlight pool on the road, and
- * red tail blocks that flare on braking / go pale in reverse (it's dusk — the
- * car should read as "lights on").
+ * Lights for the hero car: a single spotlight pool on the road ahead (it's
+ * dusk — the car should read as "lights on") plus brake response driven
+ * through the GLB's OWN tail-light materials, so nothing is glued on top of
+ * the model's real lamps.
  * @param {THREE.Object3D} model already parented under vehicle.tilt
  */
 function buildHeroLights(model) {
   const box = new THREE.Box3().setFromObject(model);
   const centre = vehicle.tilt.worldToLocal(box.getCenter(new THREE.Vector3()));
   const size = box.getSize(new THREE.Vector3());
-  const halfW = size.x / 2;
   const noseZ = centre.z + size.z / 2;
   const tailZ = centre.z - size.z / 2;
   const rig = new THREE.Group();
 
-  const headMat = new THREE.MeshLambertMaterial({ color: 0xfff2c8, emissive: 0xfff2c8, emissiveIntensity: 1.0, flatShading: true });
-  const tailMat = new THREE.MeshLambertMaterial({ color: 0x750d0d, emissive: 0xff2a2a, emissiveIntensity: 0.35, flatShading: true });
-  for (const sx of [-1, 1]) {
-    const head = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.13, 0.06), headMat);
-    head.position.set(sx * (halfW - 0.32), 0.62, noseZ - 0.02);
-    rig.add(head);
-    const tail = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.12, 0.05), tailMat);
-    tail.position.set(sx * (halfW - 0.26), 0.64, tailZ + 0.02);
-    rig.add(tail);
-  }
+  // The model's actual tail-lamp materials (named in personal.js) get a dim
+  // running glow that flares under braking.
+  const tailMats = [];
+  const wanted = new Set(CAR.modelTailMats ?? []);
+  model.traverse((o) => {
+    if (!o.isMesh || !o.material) return;
+    for (const mat of Array.isArray(o.material) ? o.material : [o.material]) {
+      if (wanted.has(mat.name) && !tailMats.includes(mat)) {
+        mat.emissive = new THREE.Color(0xff1e14);
+        mat.emissiveIntensity = 0.25;
+        tailMats.push(mat);
+      }
+    }
+  });
 
   // One wide spotlight for both beams — a pool of warm light on the tar ahead.
   const beam = new THREE.SpotLight(0xffe6b8, 60, 40, 0.55, 0.65, 1.4);
@@ -961,10 +964,9 @@ function buildHeroLights(model) {
 
   vehicle.tilt.add(rig);
   return {
-    /** @param {{braking:boolean, reversing:boolean}} signals */
-    update({ braking, reversing }) {
-      tailMat.emissive.setHex(reversing ? 0xffe9d0 : 0xff2a2a);
-      tailMat.emissiveIntensity = braking ? 1.6 : reversing ? 1.0 : 0.35;
+    /** @param {{braking:boolean}} signals */
+    update({ braking }) {
+      for (const mat of tailMats) mat.emissiveIntensity = braking ? 1.5 : 0.25;
     },
   };
 }
@@ -1018,7 +1020,10 @@ function buildDevPanel() {
   h.add(handling, 'steerAtTopSpeed', 0.02, 0.5, 0.01);
   h.add(handling, 'steerRate', 0.5, 12, 0.1);
   h.add(handling, 'grip', 1, 30, 0.5);
-  h.add(handling, 'driftGrip', 0.5, 20, 0.5);
+  h.add(handling, 'driftGrip', 0.5, 20, 0.1);
+  h.add(handling, 'slipFalloff', 0, 0.2, 0.005);
+  h.add(handling, 'driftSteerBoost', 1, 2.5, 0.05);
+  h.add(handling, 'driftYaw', 0, 0.3, 0.005);
   h.add(handling, 'bodyRoll', 0, 0.2, 0.005);
   h.add(handling, 'squat', 0, 0.15, 0.005);
 

@@ -17,18 +17,26 @@
 import * as THREE from 'three';
 import { buildChassis } from './chassis.js';
 
-/** Starting-point handling constants (§7). Live-editable via the dev panel. */
+/**
+ * Handling constants, tuned toward a weighty sim feel (MotorTown-ish) rather
+ * than instant arcade snap: a straight-six pull (~6 s to 100), long coasts,
+ * and a rear end that saturates and SLIDES instead of snapping back.
+ * Live-editable via the dev panel.
+ */
 export const DEFAULT_HANDLING = {
   maxSpeed: 28,
-  reverseMax: 8,
-  accel: 14,
-  brake: 26,
-  engineBrake: 6,
+  reverseMax: 6,
+  accel: 7.5,          // ~6 s to 100 km/h with the headroom taper — an honest E30
+  brake: 19,
+  engineBrake: 3.5,    // lift-off coasts like a real car, not a gearbox full of sand
   steerMax: 0.55,
   steerAtTopSpeed: 0.16,
   steerRate: 4.0,
-  grip: 12.0,
-  driftGrip: 5.0,
+  grip: 10.0,
+  driftGrip: 2.4,      // handbrake genuinely lets the rear go
+  slipFalloff: 0.1,    // tyres saturate as slip grows — slides sustain, recovery is progressive
+  driftSteerBoost: 1.5, // extra counter-steer authority while the rear is loose
+  driftYaw: 0.13,      // slip→yaw coupling: how hard the rear keeps coming around mid-slide
   bodyRoll: 0.06,
   squat: 0.04,
 };
@@ -71,6 +79,8 @@ export function createVehicle(scene, car, handling = DEFAULT_HANDLING, opts = {}
   let sliding = false;   // rear stepping out — lay rubber under the back wheels
 
   const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+  /** Current lateral speed in the car frame (recomputed — vLat is loop-local). */
+  const vLatNow = () => vx * Math.cos(cur.heading) + vz * -Math.sin(cur.heading);
   const lerp = (a, b, t) => a + (b - a) * t;
   const approach = (a, b, rate, dt) => a + (b - a) * Math.min(1, rate * dt);
 
@@ -110,25 +120,46 @@ export function createVehicle(scene, car, handling = DEFAULT_HANDLING, opts = {}
     vLong = clamp(vLong, -handling.reverseMax, handling.maxSpeed);
     reversing = vLong < -0.3;
 
-    // --- Lateral: grip damping (exponential). Handbrake loosens the rear. ---
-    const g = input.handbrake ? handling.driftGrip : handling.grip;
-    sliding = (input.handbrake && Math.abs(vLong) > 3) || Math.abs(vLat) > 3.5; // pre-damp = the real slide
+    // --- Lateral: grip damping (exponential). Handbrake loosens the rear, and
+    // grip falls away as slip grows (tyre saturation) — so a slide SUSTAINS
+    // and recovers progressively instead of snapping straight. ---
+    const slipAbs = Math.abs(vLat);
+    // Rear stays lit while you're hard on the power mid-slide — THAT is what
+    // sustains a drift; lifting off hands grip back and the car straightens.
+    const powerLoose = input.throttle > 0.4 && slipAbs > 2.5;
+    const gBase = input.handbrake ? handling.driftGrip
+      : powerLoose ? handling.driftGrip * 1.6 : handling.grip;
+    const g = gBase / (1 + slipAbs * (handling.slipFalloff ?? 0));
+    sliding = (input.handbrake && Math.abs(vLong) > 3) || slipAbs > 3.5; // pre-damp = the real slide
     vLat -= vLat * Math.min(1, g * dt);
 
-    // --- Steering: wheel turns toward target; authority falls off with speed ---
+    // --- Steering: wheel turns toward target; authority falls off with speed,
+    // but opens back up while the rear is loose (counter-steer needs to work).
     const speedRatio = Math.min(1, Math.abs(vLong) / handling.maxSpeed);
-    const steerCap = lerp(handling.steerMax, handling.steerAtTopSpeed, speedRatio);
+    let steerCap = lerp(handling.steerMax, handling.steerAtTopSpeed, speedRatio);
+    if (sliding) steerCap *= handling.driftSteerBoost ?? 1;
     const steerTarget = input.steer * steerCap;
     cur.steer = approach(cur.steer, steerTarget, handling.steerRate, dt);
 
     // --- Yaw: bicycle model. No turning at a standstill; reverse flips sign. ---
     cur.heading += (vLong / wheelBase) * Math.tan(cur.steer) * dt;
+    // Slip-driven yaw: while the rear is loose, the car keeps rotating INTO
+    // the slide on its own — your countersteer (bicycle term above) is what
+    // catches it. That balance is the drift; lift off and grip ends it.
+    if ((input.handbrake || powerLoose) && Math.abs(vLong) > 4) {
+      // Sign: velocity lagging right of the nose (vLat < 0 after a left flick)
+      // means the rear is stepping out to the LEFT turn — keep rotating left.
+      const slipYaw = clamp(-vLat * (handling.driftYaw ?? 0), -1.0, 1.0);
+      cur.heading += slipYaw * dt;
+    }
 
-    // Recompose world velocity with the updated heading.
-    const s2 = Math.sin(cur.heading);
-    const c2 = Math.cos(cur.heading);
-    vx = s2 * vLong + c2 * vLat;
-    vz = c2 * vLong - s2 * vLat;
+    // Recompose world velocity in the SAME basis we decomposed with. Momentum
+    // must live in world space: the heading just rotated, and next frame's
+    // decompose against the new heading is what turns that rotation into real
+    // lateral slip. (Recomposing with the new heading — the old bug — rotated
+    // momentum with the car, so no amount of steering could ever break grip.)
+    vx = s * vLong + c * vLat;
+    vz = c * vLong - s * vLat;
 
     // Integrate position.
     cur.x += vx * dt;
@@ -217,6 +248,7 @@ export function createVehicle(scene, car, handling = DEFAULT_HANDLING, opts = {}
     const speed = Math.hypot(vx, vz);
     return {
       sliding,
+      slip: vLatNow(), // signed lateral speed (m/s) — telemetry/tuning
       travelHeading: speed > 0.5 ? Math.atan2(vx, vz) : cur.heading,
       y: cur.y,
       rear: [

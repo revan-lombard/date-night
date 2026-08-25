@@ -65,13 +65,12 @@ export function createPickPanel() {
     cb?.(i);
   }
 
+  // Number keys only — arrows/W/S/Enter/Escape (and the whole gamepad) come
+  // through readMenu() in update(). Handling them here TOO made every arrow
+  // press step focus twice, which locked odd-numbered options out entirely.
   window.addEventListener('keydown', (e) => {
     if (!open) return;
-    if (e.code === 'Escape') hide();
-    else if (/^Digit[1-9]$/.test(e.code)) { const i = +e.code.slice(5) - 1; if (i < options.length) pick(i); }
-    else if (e.code === 'ArrowUp' || e.code === 'KeyW') { focus = (focus - 1 + options.length) % options.length; paint(); }
-    else if (e.code === 'ArrowDown' || e.code === 'KeyS') { focus = (focus + 1) % options.length; paint(); }
-    else if (e.code === 'Enter') pick(focus);
+    if (/^Digit[1-9]$/.test(e.code)) { const i = +e.code.slice(5) - 1; if (i < options.length) pick(i); }
   });
 
   function hide() { open = false; root.style.display = 'none'; }
