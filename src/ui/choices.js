@@ -211,11 +211,22 @@ export function createDateUI() {
       paintLine();
     },
 
-    /** Swap the dialogue furniture for a centred ending card. */
-    card(html) {
+    /** Swap the dialogue furniture for a centred ending card.
+     *  @param {string} html @param {(() => void)=} onReplay adds a replay button */
+    card(html, onReplay) {
       panel.style.display = 'none';
       meterWrap.style.display = 'none';
       cardEl.innerHTML = html;
+      if (onReplay) {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.textContent = '↻  Relive the night';
+        b.style.cssText =
+          `margin-top:18px;padding:10px 26px;border:none;background:${GOLD};color:#141414;` +
+          `font:800 15px ${COND};letter-spacing:.18em;text-transform:uppercase;cursor:pointer;`;
+        b.addEventListener('click', onReplay);
+        cardEl.appendChild(b);
+      }
       cardEl.style.display = 'block';
     },
 

@@ -12,6 +12,8 @@ import Stats from 'stats.js';
 import GUI from 'lil-gui';
 
 import { createLoop } from './core/loop.js';
+import { createAudio } from './core/audio.js';
+import { loadSave, updateSave } from './core/save.js';
 import { readInput, readMenu } from './core/input.js';
 import { createMouseLook } from './core/mouselook.js';
 import { createBus } from './core/bus.js';
@@ -166,29 +168,25 @@ const mouse = createMouseLook(renderer.domElement);
 let mode = 'onfoot'; // 'onfoot' | 'driving'
 let player = null;
 
-// --- Horn (§7) ------------------------------------------------------------
-let audioCtx = null;
+// --- Audio (§9) — synthesised soundscape, unlocked on the first gesture ----
+const audio = createAudio();
 let hornWasDown = false;
-function playHorn() {
-  if (muted) return;
-  try {
-    audioCtx ??= new (window.AudioContext || window.webkitAudioContext)();
-    const peak = 0.18 * masterVolume;
-    const beep = (start, dur, freq) => {
-      const osc = audioCtx.createOscillator();
-      const gain = audioCtx.createGain();
-      osc.type = 'square';
-      osc.frequency.value = freq;
-      gain.gain.setValueAtTime(0.0001, audioCtx.currentTime + start);
-      gain.gain.exponentialRampToValueAtTime(peak, audioCtx.currentTime + start + 0.02);
-      gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + start + dur);
-      osc.connect(gain).connect(audioCtx.destination);
-      osc.start(audioCtx.currentTime + start);
-      osc.stop(audioCtx.currentTime + start + dur + 0.02);
-    };
-    beep(0, 0.14, 440);
-    beep(0.18, 0.16, 392);
-  } catch { /* no audio — ignore */ }
+function playHorn() { audio.horn(); }
+// Any first real interaction unlocks the context (browsers block autoplay).
+for (const ev of ['pointerdown', 'keydown']) {
+  window.addEventListener(ev, () => audio.unlock(), { once: true, passive: true });
+}
+
+// --- "Best on desktop" notice (§ Phase 7) — no touch controls shipped ------
+if (window.matchMedia?.('(pointer: coarse)').matches && !window.matchMedia?.('(pointer: fine)').matches) {
+  const note = document.createElement('div');
+  note.textContent = 'Made for desktop — best played with a keyboard ♥';
+  note.style.cssText =
+    'position:fixed;left:50%;bottom:12px;transform:translateX(-50%);z-index:120;' +
+    'padding:10px 18px;background:rgba(12,12,16,.92);color:#fff;border-left:3px solid #f0a828;' +
+    'font:600 14px system-ui,sans-serif;max-width:92vw;text-align:center;';
+  note.addEventListener('click', () => note.remove());
+  document.body.appendChild(note);
 }
 
 // --- Enter / exit ---------------------------------------------------------
@@ -253,6 +251,17 @@ function activeXZ() {
 }
 
 const isDriving = () => director?.act === 'TO_FLORIST' || director?.act === 'TO_VENUE';
+
+// --- Skip-drive (§11): someone's dad may be playing this -------------------
+const SKIP_AFTER = 240; // seconds behind the wheel before the offer appears
+let driveSeconds = 0;
+const skipOffered = () => driveSeconds > SKIP_AFTER;
+window.addEventListener('keydown', (e) => {
+  if (e.code !== 'KeyK' || !skipOffered() || mode !== 'driving' || !isDriving()) return;
+  const p = waypoint.position; // pop the car at the current stop — arrival fires next tick
+  vehicle.reset(p.x - 5, p.z - 5, Math.atan2(5, 5));
+  carCam.snap();
+});
 const inBounds = (p, b) => p.x > b.minX && p.x < b.maxX && p.z > b.minZ && p.z < b.maxZ;
 
 /** True when on foot at the florist counter (objective active), flowers unbought. */
@@ -301,7 +310,9 @@ function presentNode(node, choices) {
     dateScene.setShot('choices');
     dateUI.offer(choices.map((c) => c.text), (i) => {
       const c = choices[i];
+      audio.blip();
       dateUI.meterTick(loveMeter.add(c.love), c.love);
+      if (c.love) audio.meterTick(c.love > 0);
       dialogue.pick(c);
     });
   });
@@ -329,6 +340,7 @@ function startDate() {
   dateUI.show();
   dateUI.meterSet(loveMeter.value);
 
+  audio.dateMusic(true); // the warm loop carries the whole dinner
   dialogue = createDialogue({ nodes: NODES, start: START, onNode: presentNode, onEnd: endDate });
   const opener = !hasFlowers ? DATE_OPENERS.flowersNone
     : rightFlowers ? DATE_OPENERS.flowersRight : DATE_OPENERS.flowersWrong;
@@ -341,12 +353,20 @@ function endDate() {
   const end = ENDINGS[tier];
   dateScene.setMood(tier === 'okay' ? 'neutral' : 'warm');
   dateScene.setShot('choices'); // linger on the two-shot behind the card
+  // Best score across playthroughs (Phase 5).
+  const prevBest = loadSave().bestLove ?? -1;
+  const isBest = loveMeter.value > prevBest;
+  if (isBest) updateSave({ bestLove: loveMeter.value });
+  const scoreLine = `♥ ${loveMeter.value}%` +
+    (isBest && prevBest >= 0 ? ' · new best!' : prevBest >= 0 ? ` · best ${prevBest}%` : '');
   const f = hud.fonts;
   dateUI.card(
     `<div style="font:700 13px ${f.cond};letter-spacing:.28em;color:${f.gold};text-transform:uppercase">17 September 2026 · Ten Years</div>` +
     `<div style="font:800 30px ${f.cond};letter-spacing:.04em;text-transform:uppercase;margin:8px 0 12px">${end.title}</div>` +
     `<div style="font:500 16px/1.6 ${f.body};max-width:560px;margin:0 auto">${end.message}</div>` +
-    `<div style="font:600 13px ${f.body};opacity:.55;margin-top:16px">Press R to relive the night</div>`,
+    `<div style="font:700 14px ${f.cond};letter-spacing:.2em;color:#ff5c8a;margin-top:14px">${scoreLine}</div>` +
+    `<div style="font:600 12px ${f.body};opacity:.5;margin-top:10px">(or press R)</div>`,
+    () => location.reload(),
   );
   dateEnded = true;
 }
@@ -391,6 +411,8 @@ function applySettings(s) {
   mouse.setSensitivity(s.mouseSensitivity ?? 1);
   masterVolume = (s.masterVolume ?? 80) / 100;
   muted = !!s.muted;
+  audio.setVolume(masterVolume);
+  audio.setMuted(muted);
 }
 
 const menu = createMenu({
@@ -534,7 +556,10 @@ function stepUpdate(dt, input) {
     }
     if (mode === 'driving') {
       vehicle.update(dt, input);
-      skids.drop(vehicle.getSkidInfo()); // lays rubber only while sliding
+      const skid = vehicle.getSkidInfo();
+      skids.drop(skid); // lays rubber only while sliding
+      audio.engine(Math.abs(vehicle.getSpeed()) / handling.maxSpeed, Math.max(0, input.throttle), dt);
+      audio.setScreech(skid.sliding);
       if (input.horn && !hornWasDown) playHorn();
       hornWasDown = input.horn;
     } else if (player) {
@@ -542,6 +567,11 @@ function stepUpdate(dt, input) {
       hornWasDown = false;
     }
   }
+  if (mode !== 'driving') { audio.engineOff(); audio.setScreech(false); }
+  if (mode === 'driving' && isDriving() && !menu.isOpen) driveSeconds += dt; // fuels the skip-drive offer
+  // Ringtone while she's calling; night hum once the game is running.
+  audio.ring((director?.act === 'CALL' || director?.act === 'CALLBACK') && phone.state === 'ringing');
+  audio.ambience(gameStarted && !menu.isOpen);
   enterWasDown = input.enter;
   // Arrival banner → the date, after a beat.
   if (director?.act === 'ARRIVE' && !dateActive && !menu.isOpen) {
@@ -578,7 +608,10 @@ function stepRender(alpha, frameDt) {
     carCam.update(pose, frameDt, mouse.yaw, mouse.pitch);
     sunTarget.position.set(pose.x, pose.y || 0, pose.z);
     hud.setSpeed(Math.abs(vehicle.getSpeed()) * 3.6, true);
-    hud.setPrompt(Math.abs(vehicle.getSpeed()) <= EXIT_MAX_SPEED ? 'F|get out' : null);
+    hud.setPrompt(
+      Math.abs(vehicle.getSpeed()) <= EXIT_MAX_SPEED ? 'F|get out'
+        : skipOffered() && isDriving() ? 'K|skip the drive' : null,
+    );
     hud.updateRadar({ x: pose.x, z: pose.z, heading: pose.heading }, waypointBlips());
   } else if (player) {
     vehicle.render(1); // keep the parked car's mesh in sync
@@ -653,6 +686,7 @@ if (import.meta.env.DEV) {
     get _cams() { return { carCam, personCam }; },
     get _stops() { return { florist: FLORIST_STOP, venue: VENUE }; },
     get _phone() { return phone; },
+    get _audio() { return audio; },
     step(frames = 60, input = {}) {
       const inp = { ...BASE, ...input };
       for (let i = 0; i < frames; i++) stepUpdate(1 / 60, inp);
