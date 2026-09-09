@@ -5,7 +5,7 @@
  * the drive went (lateness) and what he's holding (the flowers), then each
  * dialogue choice applies its delta. Clamped 0–100.
  *
- * Thresholds: ≥ 90 → 'best', ≥ 62 → 'good', else 'okay'. (Raised from the
+ * Thresholds: ≥ 92 → 'best', ≥ 60 → 'good', else 'okay'. (Raised from the
  * brief's 82/58 when the conversation grew from six beats to ten — playing
  * "averagely" now lands squarely in 'good', deliberately well in 'best'.)
  *
@@ -13,7 +13,7 @@
  */
 
 const START_LOVE = 50;
-export const THRESHOLDS = { best: 90, good: 62 };
+export const THRESHOLDS = { best: 92, good: 60 };
 const FLOWERS_RIGHT = +8; // her actual favourite — he knows her
 const FLOWERS_WRONG = +2; // flowers are flowers
 const FLOWERS_NONE = -6;  // ten years and empty hands

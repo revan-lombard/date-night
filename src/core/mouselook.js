@@ -40,6 +40,7 @@ export function createMouseLook(el, opts = {}) {
     get yaw() { return yaw; },
     set yaw(v) { yaw = v; },
     get pitch() { return pitch; },
+    set pitch(v) { pitch = clamp(v, PITCH_MIN, PITCH_MAX); },
     get locked() { return locked; },
 
     /** Feed the right analog stick (each −1..1) once per frame. */

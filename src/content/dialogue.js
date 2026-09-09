@@ -22,7 +22,7 @@ export const NODES = {
     choices: [
       { text: 'Same table, even. You remembered.',    love: +8, next: 'q1' },
       { text: "Actually I'm off the wine tonight.",    love: -4, next: 'q1' },
-      { text: '[Kiss her]',                            love: +6, next: 'q1', once: true },
+      { text: '[Kiss her]',                            love: +5, next: 'q1', once: true },
     ],
   },
 
@@ -33,7 +33,7 @@ export const NODES = {
     choices: [
       { text: 'Ten years together. Three married. Same date, twice — because you\'re efficient.', love: +10, next: 'q2' },
       { text: "Of course. It's... a Thursday?",        love: -6,  next: 'q2' },
-      { text: 'Our anniversary. Which one, though?',   love: +2,  next: 'q2' },
+      { text: 'Our anniversary. Which one, though?',   love: +1,  next: 'q2' },
     ],
   },
 
@@ -55,7 +55,7 @@ export const NODES = {
     mood: 'warm',
     choices: [
       { text: '"Hey stranger 😊." 18 May 2016. Then you invited me to your sister\'s 21st.', love: +10, next: 'q_movie' },
-      { text: '"Hey stranger." Then something about the Matric Dance.',                  love: +6,  next: 'q_movie' },
+      { text: '"Hey stranger." Then something about the Matric Dance.',                  love: +4,  next: 'q_movie' },
       { text: 'Was it "u up?"',                                                          love: -5,  next: 'q_movie' },
     ],
   },
@@ -66,8 +66,8 @@ export const NODES = {
     line: 'Okay, pop quiz. Our first proper date. What did we watch?',
     choices: [
       { text: 'Suicide Squad. NuMetro, Bedford Centre. You hated it, I loved it.', love: +9, next: 'q3' },
-      { text: 'Some superhero thing?',                                             love: +1, next: 'q3' },
-      { text: 'I was watching you, not the movie.',                                love: +4, next: 'q3' },
+      { text: 'Some superhero thing?',                                             love: 0, next: 'q3' },
+      { text: 'I was watching you, not the movie.',                                love: +3, next: 'q3' },
     ],
   },
 
@@ -77,8 +77,8 @@ export const NODES = {
     line: 'What was the best trip we ever took, in your honest opinion?',
     choices: [
       { text: 'Pilanesberg. Our first one. The lion at sunrise.', love: +8, next: 'q4' },
-      { text: 'They were all good, really.',                      love: +1, next: 'q4' },
-      { text: 'Ballito — the drive down, windows open.',          love: +4, next: 'q4' },
+      { text: 'They were all good, really.',                      love: 0, next: 'q4' },
+      { text: 'Ballito — the drive down, windows open.',          love: +3, next: 'q4' },
     ],
   },
 
@@ -102,7 +102,7 @@ export const NODES = {
     choices: [
       { text: '"Forever starts today." Sunflowers everywhere. You cried before I did.', love: +10, next: 'q5' },
       { text: '"Will you marry me?" Obviously.',                                        love: -2,  next: 'q5' },
-      { text: 'I was too busy shaking to read it.',                                      love: +4,  next: 'q5' },
+      { text: 'I was too busy shaking to read it.',                                      love: +3,  next: 'q5' },
     ],
   },
 
@@ -114,7 +114,7 @@ export const NODES = {
     choices: [
       { text: 'Happier than I have any words for. You are home.', love: +10, next: 'ayah' },
       { text: '"Happy enough for a Tuesday."',                    love: -8,  next: 'ayah' },
-      { text: 'Take her hand. "Yes. Really."',                   love: +8,  next: 'ayah' },
+      { text: 'Take her hand. "Yes. Really."',                   love: +6,  next: 'ayah' },
     ],
   },
 
@@ -138,7 +138,7 @@ export const NODES = {
     choices: [
       { text: "Building it. With you. Starting now.",  love: +9, next: 'ending' },
       { text: "We'll see how things go.",              love: -2, next: 'ending' },
-      { text: 'Whatever makes you happiest.',          love: +5, next: 'ending' },
+      { text: 'Whatever makes you happiest.',          love: +4, next: 'ending' },
     ],
   },
 };

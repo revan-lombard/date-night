@@ -13,7 +13,7 @@
 
 import { readMenu } from '../core/input.js';
 import { createLogo } from './logo.js';
-import { PEOPLE, PLACES, MILESTONES } from '../content/personal.js';
+import { PEOPLE, PLACES, MILESTONES, CREDITS } from '../content/personal.js';
 
 const STORAGE_KEY = 'datenight.settings';
 
@@ -268,9 +268,13 @@ export function createMenu(opts) {
       'OUR STORY',
       'Ten years · ' + (MILESTONES?.anniversary || ''),
       `Met at ${PLACES?.venue || ''}`,
-      'Made with Three.js · Built with Claude Code',
       '',
-      `For ${PEOPLE.partner.name} & ${PEOPLE.player.name}`,
+      ...(CREDITS?.thanks || []),
+      '',
+      `Made with love by ${CREDITS?.madeBy || ''}`,
+      `For ${PEOPLE.player.name} & ${PEOPLE.partner.name}`,
+      '',
+      CREDITS?.ayah || '',
     ];
     if (version) lines.push('', `v${version}`);
     list.innerHTML = lines

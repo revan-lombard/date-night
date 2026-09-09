@@ -515,11 +515,14 @@ function startEpilogue() {
     partnerAvatar.group.removeFromParent();
     vehicle.tilt.add(partnerAvatar.group);
     partnerAvatar.group.position.set(-0.34, -0.55, 0.12); // sunk to seated height — head at the window line
-    partnerAvatar.group.rotation.set(0, 0, 0);
+    partnerAvatar.group.rotation.set(0, 0.42, 0); // turned a little toward him, the way she sits
     partnerAvatar.setState('idle');
   }
   mouse.yaw = heading;
+  mouse.pitch = 0.16; // level through the windscreen (the FP eye offsets this)
   carCam.snap();
+  // Behind the wheel for this one: she's in the seat beside him. V steps back out.
+  fpView = !chaseParams.reduceMotion;
   waypoint.setTarget(HOME_STOP, HOME_STOP.y);
   waypoint.setVisible(true);
   route.setTarget(HOME_STOP);
