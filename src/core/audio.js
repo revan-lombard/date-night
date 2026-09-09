@@ -187,6 +187,48 @@ export function createAudio() {
       note(880, ctx.currentTime, 0.07, LEVELS.blip, 'square');
     },
 
+    /** WhatsApp-ish two-note "ding" for an incoming text. */
+    ding() {
+      if (!ctx) return;
+      const t = ctx.currentTime;
+      note(1175, t, 0.12, LEVELS.blip * 0.9, 'sine');
+      note(1568, t + 0.11, 0.22, LEVELS.blip * 0.9, 'sine');
+    },
+
+    /**
+     * Fetch an optional recording (her real voice on the phone). Resolves to a
+     * handle with play() → duration in seconds, or null when the file is absent
+     * or undecodable — the game never depends on it. Decoding is deferred until
+     * play() because the AudioContext only exists after the first gesture.
+     * @param {string} url
+     */
+    async loadClip(url) {
+      try {
+        const res = await fetch(url, { cache: 'force-cache' });
+        const type = res.headers.get('content-type') || '';
+        if (!res.ok || /text\/html/i.test(type)) return null; // dev server 404s serve index.html
+        const bytes = await res.arrayBuffer();
+        if (bytes.byteLength < 1000) return null;
+        let buffer = null;
+        return {
+          /** Start playback (after unlock). Returns the clip length in seconds, 0 if unavailable. */
+          play: async () => {
+            if (!ctx) return 0;
+            try {
+              if (!buffer) buffer = await ctx.decodeAudioData(bytes.slice(0));
+            } catch { return 0; }
+            const src = ctx.createBufferSource();
+            src.buffer = buffer;
+            const g = ctx.createGain();
+            g.gain.value = 0.9;
+            src.connect(g).connect(master);
+            src.start();
+            return buffer.duration;
+          },
+        };
+      } catch { return null; }
+    },
+
     /** Love-meter tick: two quick notes, up for gains, down for losses. */
     meterTick(positive) {
       if (!ctx) return;

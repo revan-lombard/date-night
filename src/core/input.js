@@ -182,5 +182,6 @@ export function readMenu() {
     edge[key] = raw[key] && !menuPrev[key];
     menuPrev[key] = raw[key];
   }
+  edge.confirmHeld = raw.confirm; // level, not edge — for hold-to-fast-forward
   return edge;
 }

@@ -42,14 +42,22 @@ export function createAyah(scene, x, y, z, heading = 0) {
   add(0.12, 0.10, 0.16, 0, 0.69, 0.29);           // snout
   for (const sx of [-1, 1]) add(0.07, 0.14, 0.05, sx * 0.10, 0.86, 0.08); // soft ears
 
-  // Collar — a thin gold band (she was loved).
-  const collar = new THREE.Mesh(
-    new THREE.TorusGeometry(0.145, 0.02, 6, 16),
-    flat(0xf0a828),
-  );
+  // Collar — her actual one from the photos: a silver chain with the round
+  // "AYAH" tag hanging at her chest.
+  const silver = flat(0xc9ccd2);
+  const collar = new THREE.Mesh(new THREE.TorusGeometry(0.145, 0.018, 6, 18), silver);
   collar.rotation.x = Math.PI / 2 - 0.16;
   collar.position.set(0, 0.60, 0.09);
   group.add(collar);
+  const tag = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.008, 12), silver);
+  tag.rotation.x = Math.PI / 2 - 0.16;
+  tag.position.set(0, 0.54, 0.235);
+  group.add(tag);
+  // White patch on her chest — she had one.
+  const patch = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.08, 0.02), flat(0xe8e2d4));
+  patch.position.set(0, 0.36, 0.205);
+  patch.rotation.x = -0.16;
+  group.add(patch);
 
   // Tail, pivoted at the haunches so it can wag.
   const tailPivot = new THREE.Group();

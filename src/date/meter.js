@@ -5,12 +5,15 @@
  * the drive went (lateness) and what he's holding (the flowers), then each
  * dialogue choice applies its delta. Clamped 0–100.
  *
- * Thresholds (§8): ≥ 82 → 'best', ≥ 58 → 'good', else 'okay'.
+ * Thresholds: ≥ 90 → 'best', ≥ 62 → 'good', else 'okay'. (Raised from the
+ * brief's 82/58 when the conversation grew from six beats to ten — playing
+ * "averagely" now lands squarely in 'good', deliberately well in 'best'.)
  *
  * @phase Implemented in Phase 4.
  */
 
 const START_LOVE = 50;
+export const THRESHOLDS = { best: 90, good: 62 };
 const FLOWERS_RIGHT = +8; // her actual favourite — he knows her
 const FLOWERS_WRONG = +2; // flowers are flowers
 const FLOWERS_NONE = -6;  // ten years and empty hands
@@ -52,7 +55,7 @@ export function createLoveMeter() {
     get value() { return love; },
 
     /** Which ending this score earns (§8). */
-    tier() { return love >= 82 ? 'best' : love >= 58 ? 'good' : 'okay'; },
+    tier() { return love >= THRESHOLDS.best ? 'best' : love >= THRESHOLDS.good ? 'good' : 'okay'; },
 
     /** Ambient mood for the value — used when a node doesn't set its own. */
     mood() { return love >= 70 ? 'warm' : love >= 45 ? 'neutral' : 'cool'; },

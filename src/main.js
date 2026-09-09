@@ -8,8 +8,9 @@
  */
 
 import * as THREE from 'three';
-import Stats from 'stats.js';
-import GUI from 'lil-gui';
+// Dev-only overlays (FPS + tuning panel) — tree-shaken out of the shipped build.
+const Stats = import.meta.env.DEV ? (await import('stats.js')).default : null;
+const GUI = import.meta.env.DEV ? (await import('lil-gui')).default : null;
 
 import { createLoop } from './core/loop.js';
 import { createAudio } from './core/audio.js';
@@ -28,6 +29,8 @@ import { loadCityKit, placeCityBuildings } from './world/cityKit.js';
 import { createParkedCars } from './world/parkedcars.js';
 import { createAyah } from './world/ayah.js';
 import { dressShops } from './world/dressing.js';
+import { hangFrames } from './world/frames.js';
+import { createCredits } from './ui/credits.js';
 import { createCrossing } from './world/crossing.js';
 import { createCollision } from './world/collision.js';
 import { createVehicle, DEFAULT_HANDLING } from './car/vehicle.js';
@@ -49,7 +52,7 @@ import { createDateScene } from './date/scene.js';
 import { createDialogue } from './date/dialogue.js';
 import { createLoveMeter } from './date/meter.js';
 import { NODES, START } from './content/dialogue.js';
-import { CAR, PEOPLE, PLACES, CALL, FLORIST, SUITS, PLAYER_HEIGHT, CHARACTERS, ENDINGS, DATE_OPENERS } from './content/personal.js';
+import { CAR, PEOPLE, PLACES, CALL, FLORIST, SUITS, PLAYER_HEIGHT, CHARACTERS, ENDINGS, DATE_OPENERS, LOOKS, TEXTS, STORY, LETTER, CREDITS, MILESTONES } from './content/personal.js';
 
 const ENTER_DIST = 3.8; // metres — how close on foot to enter the car
 const EXIT_MAX_SPEED = 2; // m/s — must be nearly stopped to get out
@@ -120,6 +123,7 @@ createStreetFurniture(scene); // sidewalk kerbs, lamp posts, traffic lights
 const bushveld = createBushveld(scene);
 const shops = createShops(scene, { suitColors: SUITS.options.map((s) => s.color) }); // florist, café, tailor, home
 dressShops(scene, shops); // Kenney CC0 props — best-effort, purely visual
+hangFrames(scene, shops, { motto: MILESTONES.motto, verse: MILESTONES.verse }); // their photos on their walls
 
 // The florist and coffee-shop blocks are handed to the story buildings, so keep
 // generated buildings/colliders off them.
@@ -337,7 +341,8 @@ function chooseSuit(i) {
   const opt = SUITS.options[i];
   if (!opt) return;
   hasSuit = true;
-  avatar?.setShirt?.(opt.color); // he wears it for the rest of the night
+  // He wears it for the rest of the night: jacket, shirt, tie, the lot.
+  avatar?.setOutfit?.(opt.outfit ?? { cut: 'formal', jacket: opt.color, shirt: 0xf4f1ea, tie: 0x0c0c0f });
   audio.blip();
   shops.tailor.highlight.visible = false;
   director.suitPicked();
@@ -471,12 +476,17 @@ function endDate() {
   if (isBest) updateSave({ bestLove: loveMeter.value });
   const scoreLine = `♥ ${loveMeter.value}%` +
     (isBest && prevBest >= 0 ? ' · new best!' : prevBest >= 0 ? ` · best ${prevBest}%` : '');
+  // Relationship level, the way her PDF draws it: a row of hearts.
+  const lit = Math.max(1, Math.round(loveMeter.value / 10));
+  const hearts = '<span style="color:#ff5c8a">' + '♥'.repeat(lit) + '</span><span style="opacity:.28">' + '♥'.repeat(10 - lit) + '</span>';
   const f = hud.fonts;
   dateUI.card(
-    `<div style="font:700 13px ${f.cond};letter-spacing:.28em;color:${f.gold};text-transform:uppercase">17 September 2026 · Ten Years</div>` +
+    `<div style="font:700 13px ${f.cond};letter-spacing:.28em;color:${f.gold};text-transform:uppercase">${MILESTONES.anniversary} · Ten Years</div>` +
     `<div style="font:800 30px ${f.cond};letter-spacing:.04em;text-transform:uppercase;margin:8px 0 12px">${end.title}</div>` +
     `<div style="font:500 16px/1.6 ${f.body};max-width:560px;margin:0 auto">${end.message}</div>` +
-    `<div style="font:700 14px ${f.cond};letter-spacing:.2em;color:#ff5c8a;margin-top:14px">${scoreLine}</div>` +
+    `<div style="font:700 12px ${f.cond};letter-spacing:.3em;color:${f.gold};text-transform:uppercase;margin-top:16px">Relationship level</div>` +
+    `<div style="font-size:22px;letter-spacing:3px;margin-top:4px">${hearts}</div>` +
+    `<div style="font:700 14px ${f.cond};letter-spacing:.2em;color:#ff5c8a;margin-top:8px">${scoreLine}</div>` +
     `<div style="font:600 12px ${f.body};opacity:.5;margin-top:8px">(R replays the night)</div>`,
     startEpilogue,
     '🚗  Drive her home',
@@ -518,7 +528,8 @@ function startEpilogue() {
   hud.setLocation('GERMISTON');
 }
 
-/** Rolled up outside the house — the campaign card, and the night is done. */
+/** Rolled up outside the house — the campaign card, then "Our Story" rolls. */
+const credits = createCredits({ story: STORY, letter: LETTER, credits: CREDITS, milestones: MILESTONES, partner: PEOPLE.partner, player: PEOPLE.player });
 function finishNight() {
   epilogueDone = true;
   waypoint.setVisible(false);
@@ -527,20 +538,43 @@ function finishNight() {
   hud.setPrompt(null);
   hud.setObjective(null);
   hud.setArrow(null);
+  audio.engineOff();
   const f = hud.fonts;
   dateUI.show();
   dateUI.card(
-    `<div style="font:700 13px ${f.cond};letter-spacing:.28em;color:${f.gold};text-transform:uppercase">17 September 2026 · Radiokop</div>` +
+    `<div style="font:700 13px ${f.cond};letter-spacing:.28em;color:${f.gold};text-transform:uppercase">${MILESTONES.anniversary} · ${PLACES.home}</div>` +
     `<div style="font:800 32px ${f.cond};letter-spacing:.05em;text-transform:uppercase;margin:10px 0 4px">10 Years Together</div>` +
-    `<div style="font:800 20px ${f.cond};letter-spacing:.08em;text-transform:uppercase;color:#7be08a">Mission accomplished ✓</div>` +
+    `<div style="font:800 22px ${f.cond};letter-spacing:.06em;text-transform:uppercase;color:${f.gold}">3 Years of Marriage</div>` +
+    `<div style="font:800 20px ${f.cond};letter-spacing:.08em;text-transform:uppercase;color:#7be08a;margin-top:6px">Mission accomplished ✓</div>` +
     `<div style="font:700 13px ${f.cond};letter-spacing:.26em;color:${f.gold};text-transform:uppercase;margin-top:14px">Campaign status: ongoing</div>` +
     `<div style="font:800 26px ${f.cond};letter-spacing:.1em;text-transform:uppercase;margin:8px 0 10px">To be continued</div>` +
-    `<div style="font:600 15px ${f.body};font-style:italic;opacity:.9">One team. One Mission. One God.</div>`,
-    () => location.reload(),
+    `<div style="font:600 15px ${f.body};font-style:italic;opacity:.9">${MILESTONES.motto}</div>`,
+    rollCredits,
+    '▶  Our Story',
   );
 }
 
+/** The closing sequence: her PDF as a credits roll, her letter, the makers. */
+function rollCredits() {
+  if (credits.active) return;
+  dateUI.hide();
+  hud.setVisible(false);
+  audio.dateMusic(true); // the warm loop carries the roll
+  credits.show(() => location.reload());
+}
+
+// --- Texts from her (WhatsApp beats) — queued a few seconds into a leg -------
+/** @type {Array<{at:number, msg:string}>} */
+let pendingTexts = [];
+let textClock = 0;
+function queueTexts(list, firstDelay = 4) {
+  if (!list?.length) return;
+  let at = textClock + firstDelay;
+  for (const msg of list) { pendingTexts.push({ at, msg }); at += 3.4; }
+}
+
 bus.on('act', (a) => {
+  queueTexts(TEXTS[a], a === 'TO_VENUE' ? 6 : 4);
   if (a === 'SPAWN') { hud.setMission('Head out to the E30'); hud.setLocation('RADIOKOP'); }
   else if (a === 'CALL' || a === 'CALLBACK') { hud.setMission('Answer your phone'); hud.setLocation('RADIOKOP'); }
   else if (a === 'TO_TAILOR') { hud.setMission('Pick up your suit'); hud.setLocation('GERMISTON'); route.setTarget(TAILOR_STOP); }
@@ -549,6 +583,7 @@ bus.on('act', (a) => {
   else if (a === 'AT_FLORIST') { hud.setMission(`Buy ${PEOPLE.partner.name}'s favourite flowers`); hud.setLocation('THE FLORIST'); shops.flower.highlight.visible = true; }
   else if (a === 'TO_VENUE') { hud.setMission(`Get to ${PLACES.venue}`); hud.setLocation('GERMISTON'); route.setTarget(VENUE); shops.flower.highlight.visible = false; }
   if (a === 'ARRIVE') {
+    pendingTexts = []; // anything she hadn't sent yet can wait — he's here
     const late = director.lateness;
     const jab = late < 0.15 ? 'Right on time. Who are you and what have you done with him?'
       : late < 0.55 ? 'A little late, but you made it.'
@@ -559,7 +594,7 @@ bus.on('act', (a) => {
     hud.setLocation(PLACES.venue.toUpperCase());
     const f = hud.fonts;
     hud.setBanner(
-      `<div style="font:700 13px ${f.cond};letter-spacing:.28em;color:${f.gold};text-transform:uppercase">Mission 01 · The Beginning</div>` +
+      `<div style="font:700 13px ${f.cond};letter-spacing:.28em;color:${f.gold};text-transform:uppercase">Mission 07 · Date Night</div>` +
       `<div style="font:800 34px ${f.cond};letter-spacing:.04em;text-transform:uppercase;margin:6px 0 2px">You made it</div>` +
       `<div style="font:700 16px ${f.cond};letter-spacing:.14em;color:${f.gold};text-transform:uppercase">${PLACES.venue}</div>` +
       `<div style="font:500 15px ${f.body};opacity:.85;margin-top:10px">"${jab}"</div>` +
@@ -601,7 +636,7 @@ const menu = createMenu({
 applySettings(menu.getSettings());
 
 function togglePause() {
-  if (!gameStarted || menu.isOpen || pickPanel.isOpen || director?.act === 'ARRIVE') return;
+  if (!gameStarted || menu.isOpen || pickPanel.isOpen || director?.act === 'ARRIVE' || credits.active) return;
   // During a call, Esc is "decline" (the phone owns it), not pause.
   if (director?.act === 'CALL' || director?.act === 'CALLBACK') return;
   menu.showPause();
@@ -632,12 +667,14 @@ function pollPauseButton() {
   backWasDown = back;
 }
 
-const stats = new Stats();
-stats.showPanel(0);
-document.getElementById('stats-container').appendChild(stats.dom);
-stats.dom.style.position = 'static';
+const stats = Stats ? new Stats() : null;
+if (stats) {
+  stats.showPanel(0);
+  document.getElementById('stats-container').appendChild(stats.dom);
+  stats.dom.style.position = 'static';
+}
 
-buildDevPanel();
+if (GUI) buildDevPanel();
 
 // --- Resize ---------------------------------------------------------------
 function resize() {
@@ -663,8 +700,7 @@ async function init() {
     avatar = createCharacter(playerGltf, {
       targetHeight: PLAYER_HEIGHT,
       modelYaw: CHARACTERS.player.modelYaw,
-      skinShirt: PEOPLE.player.shirt, // casual blue at home — the tailor suits him up
-      style: 'suit',
+      look: LOOKS.player, // Jonathan, as he is in the photos — casual at home; the tailor suits him up
       extraClips: animClips,
     });
   } catch (err) {
@@ -695,21 +731,19 @@ async function init() {
     partnerAvatar = createCharacter(partnerGltf, {
       targetHeight: PLAYER_HEIGHT * 0.94, // a touch shorter than Jonathan
       modelYaw: CHARACTERS.partner.modelYaw,
-      skinShirt: PEOPLE.partner.dress,
-      style: 'dress',
+      look: LOOKS.partner,
       extraClips: animClips,
     });
   } else if (playerGltf) {
-    // No photo avatar yet — until then, Simone is a styled clone of the same
-    // rig (SkeletonUtils keeps the skinned mesh + clips working): her dress
-    // colour, bare legs, long dark hair. Swaps out the moment partner.glb lands.
+    // Simone is a clone of the same rig (SkeletonUtils keeps the skinned mesh
+    // + clips working), painted as HER: long blonde hair, the floral dress,
+    // the gold chain. Swaps out the moment a partner.glb lands.
     partnerAvatar = createCharacter(
       { scene: cloneRig(playerGltf.scene), animations: playerGltf.animations },
       {
         targetHeight: PLAYER_HEIGHT * 0.94,
         modelYaw: CHARACTERS.partner.modelYaw,
-        skinShirt: PEOPLE.partner.dress,
-        style: 'dress',
+        look: LOOKS.partner,
         keepMaterials: false, // always re-clothe the clone, even if he's textured
         extraClips: animClips,
       },
@@ -734,10 +768,19 @@ async function init() {
     collision = createCollision(placed.colliders.concat(shops.colliders, parked.colliders));
   }
 
+  // Her real voice on the phone, if a recording was dropped in (else null and
+  // the typed subtitles carry the call on their own).
+  const callClip = CALL.audioFile ? await audio.loadClip(import.meta.env.BASE_URL + CALL.audioFile) : null;
+  if (callClip) console.info('[audio] call recording found — she will speak');
+
   // Mission director: HOME → CALL → TAILOR → FLORIST → VENUE → the date.
   director = createDirector({
     phone, waypoint, timer, bus,
-    call: { caller: PEOPLE.partner.name, lines: CALL.lines, declineLines: CALL.declineLines },
+    call: {
+      caller: PEOPLE.partner.name, lines: CALL.lines, declineLines: CALL.declineLines,
+      onAnswer: callClip ? () => { audio.unlock(); return callClip.play(); } : null,
+      onAnswerCallback: null, // the ring-back is text-only; she's not in the mood to be recorded
+    },
     getPose: activeXZ,
     stops: { tailor: TAILOR_STOP, florist: FLORIST_STOP, coffee: VENUE },
   });
@@ -817,6 +860,15 @@ function stepUpdate(dt, input) {
   // Ringtone while she's calling; night hum once the game is running.
   audio.ring((director?.act === 'CALL' || director?.act === 'CALLBACK') && phone.state === 'ringing');
   audio.ambience(gameStarted && !menu.isOpen);
+  // Her texts land a few seconds into a leg (not while paused or on a card).
+  if (gameStarted && !menu.isOpen) {
+    textClock += dt;
+    phone.tickTexts(dt);
+    while (pendingTexts.length && pendingTexts[0].at <= textClock) {
+      phone.text(PEOPLE.partner.name, pendingTexts.shift().msg);
+      audio.ding();
+    }
+  }
   enterWasDown = input.enter;
   // "Looking sharp" beat → clear the banner, and the phone rings.
   if (setReadyBanner > 0 && !menu.isOpen) {
@@ -842,8 +894,26 @@ function stepUpdate(dt, input) {
 }
 
 let titleAngle = 0.6; // start on a pleasing three-quarter view of the city
+let portraitHold = null; // dev harness: park the camera on an avatar
 
 function stepRender(alpha, frameDt) {
+  if (portraitHold) {
+    const a = portraitHold.which === 'partner' ? partnerAvatar : avatar;
+    if (a) {
+      a.update?.(frameDt);
+      a.group.updateMatrixWorld(true);
+      const p = new THREE.Vector3().setFromMatrixPosition(a.group.matrixWorld);
+      const yaw = a.group.rotation.y + portraitHold.yawOff;
+      const { dist, height, lookY } = portraitHold;
+      camera.position.set(p.x + Math.sin(yaw) * dist, p.y + height, p.z + Math.cos(yaw) * dist);
+      camera.lookAt(p.x, p.y + lookY, p.z);
+      camera.fov = 40; camera.updateProjectionMatrix();
+      hud.setVisible(false);
+      renderer.render(scene, camera);
+      return;
+    }
+  }
+  if (credits.active) { credits.update(); return; } // the roll owns the screen; no 3D behind it
   hud.setVisible(gameStarted && !menu.isOpen && !dateActive); // no HUD behind menus or the dinner
   // Attract mode: while the title is up, drift slowly around the dusk city —
   // the menu floats over living key art instead of a black void (GTA-style).
@@ -959,12 +1029,12 @@ function waypointBlips() {
 const loop = createLoop({
   update: (dt) => stepUpdate(dt, readInput()),
   render: (alpha) => {
-    stats.begin();
+    stats?.begin();
     const now = performance.now();
     const frameDt = Math.min(0.1, (now - lastRender) / 1000);
     lastRender = now;
     stepRender(alpha, frameDt);
-    stats.end();
+    stats?.end();
   },
 });
 
@@ -981,6 +1051,11 @@ if (import.meta.env.DEV) {
     get _mouse() { return mouse; },
     get _cams() { return { carCam, personCam }; },
     get _stops() { return { tailor: TAILOR_STOP, florist: FLORIST_STOP, venue: VENUE, home: shops.home }; },
+    get _avatars() { return { avatar, partnerAvatar }; },
+    /** Hold the camera on an avatar for a likeness check (null to release). */
+    portrait(which = 'avatar', dist = 2.6, yawOff = 0, height = 1.1, lookY = height * 0.85) {
+      portraitHold = which ? { which, dist, yawOff, height, lookY } : null;
+    },
     getReady() { doGetReady(); },
     pickSuit(i) { chooseSuit(i); },
     get _phone() { return phone; },
@@ -1032,6 +1107,10 @@ if (import.meta.env.DEV) {
     beginEpilogue() { startEpilogue(); },
     get epilogueActive() { return epilogueActive; },
     get epilogueDone() { return epilogueDone; },
+    finishNight() { finishNight(); },
+    rollCredits() { rollCredits(); },
+    get _credits() { return credits; },
+    text(msg) { phone.text(PEOPLE.partner.name, msg); },
   };
 }
 

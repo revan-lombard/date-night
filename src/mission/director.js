@@ -18,7 +18,8 @@ const CALLBACK_DELAY = 2.6;
 /**
  * @param {Object} deps
  * @param {*} deps.phone @param {*} deps.waypoint @param {*} deps.timer @param {*} deps.bus
- * @param {{caller:string, lines:string[], declineLines?:string[]}} deps.call
+ * @param {{caller:string, lines:string[], declineLines?:string[], onAnswer?:Function, onAnswerCallback?:Function}} deps.call
+ *   onAnswer / onAnswerCallback: optional — start her recording when he picks up (returns its length)
  * @param {() => {x:number, z:number}} deps.getPose
  * @param {{tailor:{x:number,z:number,y:number}, florist:{x:number,z:number,y:number}, coffee:{x:number,z:number,y:number}}} deps.stops
  */
@@ -44,7 +45,7 @@ export function createDirector({ phone, waypoint, timer, bus, call, getPose, sto
     switch (act) {
       // HOME: waiting for main to call getReady() at the mirror.
       case 'SPAWN':
-        if (t >= SPAWN_TO_CALL) { phone.start(call.caller, call.lines); set('CALL'); }
+        if (t >= SPAWN_TO_CALL) { phone.start(call.caller, call.lines, call.onAnswer); set('CALL'); }
         break;
       case 'CALL':
         phone.update(dt);
@@ -61,7 +62,7 @@ export function createDirector({ phone, waypoint, timer, bus, call, getPose, sto
         break;
       case 'CALLBACK':
         callbackTimer -= dt;
-        if (callbackTimer <= 0) { phone.start(call.caller, call.declineLines || call.lines); set('CALL'); }
+        if (callbackTimer <= 0) { phone.start(call.caller, call.declineLines || call.lines, call.onAnswerCallback); set('CALL'); }
         break;
       case 'TO_TAILOR': {
         timer.tick(dt);

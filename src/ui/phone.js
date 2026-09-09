@@ -1,14 +1,18 @@
 /**
  * @file ui/phone.js
- * @responsibility Incoming-call overlay. A call now *rings* first: the caller
- * card pulses with two clear actions — Answer (green) and Decline (red) —
- * driven by mouse, keyboard, or controller (readMenu). Answering runs the
- * existing typewriter subtitles from CALL.lines (subtitles always on, §11;
- * click / Enter skips a line). Declining plays a brief "Declined" beat and
- * ends the call. No audio autoplays; the recorded clip is wired in Phase 6.
+ * @responsibility His phone. Two things arrive on it:
+ *   • an incoming CALL — the caller card rings with two clear actions, Answer
+ *     (green) and Decline (red), driven by mouse, keyboard, or controller
+ *     (readMenu). Answering runs typewriter subtitles from CALL.lines (subtitles
+ *     always on, §11; click / Enter skips a line) and, if a real recording was
+ *     supplied, plays it and holds the call open until it finishes. Declining
+ *     plays a brief "Declined" beat and ends the call.
+ *   • a TEXT — a WhatsApp-styled bubble that slides in top-right for a few
+ *     seconds ("Hey stranger 😊"). Purely a beat; nothing to press.
+ * No audio autoplays: the recording only starts from the Answer gesture.
  *
- * @phase Ringing/Answer/Decline added in the front-end shell pass; typewriter
- * from Phase 3; audio in Phase 6.
+ * @phase Ringing/Answer/Decline in the front-end shell pass; typewriter from
+ * Phase 3; recording + texts in the ship pass.
  */
 
 import { readMenu } from '../core/input.js';
@@ -17,6 +21,7 @@ const CPS = 34;          // characters per second
 const LINE_HOLD = 1.1;   // seconds to hold a finished line
 const END_HOLD = 1.0;    // seconds after the last line before `done`
 const DECLINE_HOLD = 0.8; // seconds to show the "Declined" beat
+const TEXT_SHOW = 5.2;   // seconds a text bubble stays up
 
 let stylesInjected = false;
 function injectStyles() {
@@ -28,6 +33,7 @@ function injectStyles() {
   50%{box-shadow:0 0 0 12px rgba(240,168,40,0)}}
 @keyframes ph-wiggle{0%,100%{transform:rotate(-8deg)}50%{transform:rotate(8deg)}}
 @keyframes ph-dots{0%{opacity:.2}20%{opacity:1}100%{opacity:.2}}
+@keyframes ph-slide{from{transform:translateX(40px);opacity:0}to{transform:none;opacity:1}}
 .ph-ava-ring{animation:ph-ring 1.2s ease-out infinite}
 .ph-ico-ring{animation:ph-wiggle .5s ease-in-out infinite}
 .ph-dot{animation:ph-dots 1.4s infinite}
@@ -39,8 +45,17 @@ function injectStyles() {
 .ph-btn:hover{transform:translateY(-1px);filter:brightness(1.08)}
 .ph-answer{background:#22b06a}
 .ph-decline{background:#e0455a}
+.ph-text{position:fixed;right:18px;top:18px;z-index:72;width:min(340px,84vw);
+  background:#0b141a;color:#e9edef;border-radius:14px;padding:10px 12px 8px;
+  box-shadow:0 10px 30px rgba(0,0,0,.55);font-family:system-ui,'Segoe UI',Roboto,sans-serif;
+  animation:ph-slide .35s ease-out;transition:opacity .5s ease,transform .5s ease}
+.ph-text-hd{display:flex;align-items:center;gap:8px;font-size:12px;color:#8696a0;margin-bottom:6px}
+.ph-text-hd b{color:#25d366;font-size:13px}
+.ph-text-bub{background:#005c4b;border-radius:10px 10px 10px 2px;padding:8px 10px;font-size:16px;line-height:1.35;
+  position:relative;display:inline-block;max-width:100%}
+.ph-text-time{font-size:11px;color:rgba(233,237,239,.6);text-align:right;margin-top:3px}
 @media (prefers-reduced-motion:reduce){
-  .ph-ava-ring,.ph-ico-ring,.ph-dot{animation:none}}
+  .ph-ava-ring,.ph-ico-ring,.ph-dot,.ph-text{animation:none}}
 `;
   document.head.appendChild(style);
 }
@@ -92,12 +107,15 @@ export function createPhone() {
   let answered = false;
   let declined = false;
   let swallowConfirm = false; // eat the confirm edge that answered via a key
+  let onAnswer = null;     // () => Promise<number>|number — starts a recording, returns its length
+  let talkT = 0;           // seconds since answering
+  let minTalk = 0;         // hold the call open at least this long (the recording)
 
   const answer = () => {
     if (state !== 'ringing') return;
     state = 'talking';
     answered = true;
-    li = 0; shown = 0; hold = 0;
+    li = 0; shown = 0; hold = 0; talkT = 0; minTalk = 0;
     statusEl.textContent = 'mobile · on call';
     iconEl.classList.remove('ph-ico-ring');
     avaEl.classList.remove('ph-ava-ring');
@@ -105,6 +123,11 @@ export function createPhone() {
     subEl.style.display = 'block';
     hintEl.style.display = 'block';
     subEl.textContent = '';
+    if (onAnswer) {
+      try {
+        Promise.resolve(onAnswer()).then((d) => { if (d > 0) minTalk = d + 0.4; }).catch(() => {});
+      } catch { /* the recording is optional */ }
+    }
   };
   const decline = () => {
     if (state !== 'ringing') return;
@@ -138,13 +161,26 @@ export function createPhone() {
     else if (e.code === 'Escape') { decline(); }
   });
 
+  // --- Texts (WhatsApp bubbles) ---
+  /** @type {Array<{el: HTMLElement, t: number}>} */
+  const texts = [];
+  const timeNow = () => {
+    const d = new Date();
+    return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+  };
+
   return {
-    /** @param {string} caller @param {string[]} callLines */
-    start(caller, callLines) {
+    /**
+     * @param {string} caller @param {string[]} callLines
+     * @param {(() => Promise<number>|number)=} startClip  plays her recording on Answer;
+     *   resolves to the clip length so the call stays open until she's finished
+     */
+    start(caller, callLines, startClip) {
       lines = callLines.slice();
       li = 0; shown = 0; hold = 0; declineHold = 0;
       state = 'ringing'; done = false; answered = false; declined = false;
       swallowConfirm = false;
+      onAnswer = startClip || null;
       nameEl.textContent = caller;
       avaEl.textContent = (caller || '?').trim().charAt(0).toUpperCase();
       avaEl.classList.add('ph-ava-ring');
@@ -160,6 +196,16 @@ export function createPhone() {
       // Free the cursor — mouse-look holds pointer lock, which would hide the
       // pointer and make Answer/Decline unclickable (keys still work anyway).
       document.exitPointerLock?.();
+    },
+
+    /** Age the text bubbles — call every update tick, whatever the call is doing. */
+    tickTexts(dt) {
+      for (let i = texts.length - 1; i >= 0; i--) {
+        const tx = texts[i];
+        tx.t += dt;
+        if (tx.t > TEXT_SHOW && !tx.fading) { tx.fading = true; tx.el.style.opacity = '0'; tx.el.style.transform = 'translateX(30px)'; }
+        if (tx.t > TEXT_SHOW + 0.6) { tx.el.remove(); texts.splice(i, 1); restack(); }
+      }
     },
 
     update(dt) {
@@ -181,6 +227,7 @@ export function createPhone() {
       }
 
       // talking: controller/keyboard skip via readMenu.confirm.
+      talkT += dt;
       if (m?.confirm) { if (swallowConfirm) swallowConfirm = false; else skip(); }
 
       const line = lines[li] ?? '';
@@ -194,8 +241,27 @@ export function createPhone() {
         subEl.textContent = '';
       } else {
         hold += dt;
-        if (hold >= LINE_HOLD + END_HOLD) done = true;
+        // With a recording, keep her on the line until she's actually finished.
+        if (hold >= LINE_HOLD + END_HOLD && talkT >= minTalk) done = true;
       }
+    },
+
+    /**
+     * A text from her — WhatsApp bubble, top-right, gone after a few seconds.
+     * Several stack. Purely presentational.
+     * @param {string} from @param {string} message
+     */
+    text(from, message) {
+      const el = document.createElement('div');
+      el.className = 'ph-text';
+      el.innerHTML =
+        `<div class="ph-text-hd"><span style="width:22px;height:22px;border-radius:50%;background:#f0a828;color:#141007;` +
+        `display:inline-flex;align-items:center;justify-content:center;font-weight:800;font-size:12px">${(from || '?').charAt(0)}</span>` +
+        `<b>${from}</b><span>· WhatsApp</span></div>` +
+        `<div class="ph-text-bub">${message}<div class="ph-text-time">${timeNow()} ✓✓</div></div>`;
+      document.body.appendChild(el);
+      texts.push({ el, t: 0 });
+      restack();
     },
 
     hide() { state = 'idle'; root.style.display = 'none'; },
@@ -206,4 +272,10 @@ export function createPhone() {
     get answered() { return answered; },
     get declined() { return declined; },
   };
+
+  /** Stack live bubbles top-down under the corner. */
+  function restack() {
+    let top = 18;
+    for (const tx of texts) { tx.el.style.top = top + 'px'; top += tx.el.offsetHeight + 8; }
+  }
 }

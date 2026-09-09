@@ -1,10 +1,12 @@
 # Date Night — *Our Story*
 
 A short, low-poly, GTA-flavoured driving-and-dialogue game, made as a
-10-year-anniversary gift for Jonathan & Simone (17 September 2026).
+10-year-anniversary gift for Jonathan & Simone (17 September 2026 — ten years
+together, three of them married, same date).
 
-Get in the black E30, answer her call, buy the right flowers, get to
-Murphy's on time, and say the things only you would know to say.
+Get ready at home in Radiokop, answer her call, pick up the tux, buy the right
+flowers, get to Murphy's in Lambton on time, say the things only you would know
+to say, drive her home — and then watch *Our Story* roll.
 
 ## Run it
 
@@ -12,52 +14,89 @@ Murphy's on time, and say the things only you would know to say.
 npm install
 npm run dev        # http://localhost:5173
 npm run build      # static build in dist/ (relative paths — hosts anywhere)
+npm run preview    # serve the built dist/ locally to check it
 ```
 
 **Controls:** WASD drive/walk · Space handbrake/jump · F enter/exit/interact ·
-H horn · mouse free-look · Esc pause · 1–3 dialogue choices · gamepad supported.
+H horn · V first-person · mouse free-look · Esc pause · 1–3 dialogue choices ·
+gamepad supported throughout (Ⓐ confirm, R3 camera, Back skips a long drive).
 
 ## Status
 
 | Phase | State |
 |---|---|
 | 0–3 Skeleton → car → city → mission | ✅ done |
-| 4 The date (dialogue, meter, moods) | ✅ done |
-| 5 Endings, save, replay | ✅ done |
-| 6 Audio (synth engine, screech, ring, date loop) | ✅ done |
-| 7 Ship | ⬜ deploy + (optional) touch controls |
+| 4 The date (ten beats, meter, moods) | ✅ done |
+| 5 Endings, epilogue drive home, *Our Story* credits, her letter | ✅ done |
+| 6 Audio (synth engine, screech, ring, texts, date loop; optional real call) | ✅ done |
+| 7 Ship | ✅ builds clean (≈6.5 MB) · ⬜ deploy + test on the actual laptop |
+
+## What's in the night
+
+- **Home** — a walk-in gallery of their real photographs (the proposal, the
+  wedding, Ayah), *One team. One mission. One God.* over the mirror, Joshua
+  24:15 over the wardrobe. The black E30 waits at the kerb.
+- **The call** — Simone rings; decline it and she rings back, less patient.
+- **The tailor** — four suits; the first is the wedding tux, bow tie included.
+  He wears whatever he picks for the rest of the night.
+- **WhatsApps on the road** — *"Hey stranger 😊"*, the exact text from 18 May 2016.
+- **The florist** — Sunflowers are the right answer (the proposal was dressed in them).
+- **The impala crossing**, **Ayah** with her halo waiting at Murphy's door.
+- **Dinner** — ten beats: today's date, Murphy's, the WhatsApp, Suicide Squad
+  at NuMetro Bedford, Pilanesberg, the motto, *Forever starts today*, "are you
+  happy", Ayah, the future. Three endings; the worst is still a nice dinner.
+- **The drive home** with Simone in the passenger seat, the campaign card,
+  then *Our Story* as a credits roll — every mission from her PDF with the
+  photos — then her letter, word for word, then the makers.
+
+## The characters
+
+Jonathan and Simone are painted onto a rigged mannequin **by body region** from
+`LOOKS` in `src/content/personal.js`: skin, hair, beard, sleeves, dress, shoes,
+plus procedural hair, beard, glasses, bow tie and necklace meshes riding the
+head and neck bones. Colours were read off the real photographs. Tweak a hex
+there and it changes everywhere (walk-in, dinner, the car).
+
+Prefer scanned avatars? Drop Ready Player Me / Avaturn exports in as
+`public/models/character.glb` and `public/models/partner.glb` (plus a shared
+`public/models/anims.glb` clip pack). A textured avatar is never repainted.
 
 ## Finishing touches only you can do
 
 Everything personal lives in **`src/content/personal.js`** — search `TODO(confirm)`:
 
-1. **The running joke** (`MILESTONES.runningJoke`, and q4 in
-   `src/content/dialogue.js`) — the single highest-value line in the game.
-2. **Her favourites** — food, drink, song, and especially **flower**
-   (`FLORIST.favourite` gates the bouquet bonus; currently **Sunflowers**,
-   because the proposal in "Our Story" was dressed in them — confirm).
-3. **Simone's avatar** — make one from a photo at readyplayer.me and drop it
-   in as `public/models/partner.glb` (plus the free RPM animation pack as
-   `public/models/anims.glb`). The pink stand-in retires itself automatically.
-4. **The call recording** — secretly record her reading the three lines in
-   `CALL.lines`, save as `assets/call.mp3`. The text fallback already works.
-5. Read the ending messages in `ENDINGS` out loud once — the best ending now
-   carries the letter from the PDF word for word; make the other two yours.
-6. **Ayah** 🐾 — she's in: sitting by Murphy's door with her halo
-   (`src/world/ayah.js`), and Simone raises a glass to her in the dinner
-   (the `ayah` node in `src/content/dialogue.js`). Every answer there is
-   kind — grief is not a quiz. Reword her line if you'd like it softer or
-   sillier; delete the node's hop (`q5 → ayah → q6`) to remove the beat.
+1. **Her favourites** — food, drink, song (`MILESTONES.herFavourite`), and the
+   **flower** (`FLORIST.favourite`, currently Sunflowers).
+2. **A private running joke**, if there's one beyond the motto (`MILESTONES.runningJoke`).
+3. **Your name** on the credits card (`CREDITS.madeBy`).
+4. **The call recording** — record Simone reading the three lines in
+   `CALL.lines` and save it as **`public/audio/call.mp3`**. It plays when he
+   answers; the subtitles still type out; the call stays open until she's done.
+   Without the file the text-only call plays as before.
+5. **Glasses** — Jonathan wears them in the proposal photo, not at the wedding.
+   Set `LOOKS.player.glasses = 0x2a2624` to add them.
+6. Read the two non-best `ENDINGS` out loud once. The letter in `LETTER` is hers verbatim.
 
 ## Assets
 
 City buildings, interior furniture, food and flowers are from
-[Kenney](https://kenney.nl) (Furniture Kit, Food Kit, Nature Kit, City Kit) —
-CC0, no attribution required, but he's a legend so: thanks Kenney.
-Everything else is procedural three.js.
+[Kenney](https://kenney.nl) (Furniture, Food, Nature, City kits) — CC0.
+The BMW E30 is a Sketchfab low-poly model (`reference-models/` keeps the
+original); check its licence page before publishing anywhere public.
+Photographs are the couple's own, from *Our Story*. Everything else is
+procedural three.js.
 
 ## Deploying
 
 `vite.config.js` uses relative paths, so `dist/` works on GitHub Pages,
-Netlify, or any static host. Test the public link on the actual laptop it
-will be played on before the night.
+Netlify, or any static host:
+
+- **Netlify Drop** — run `npm run build`, drag the `dist/` folder onto
+  <https://app.netlify.com/drop>. One link, done.
+- **GitHub Pages** — push to a GitHub repo; `.github/workflows/deploy.yml`
+  builds and publishes on every push to `main` (enable Pages → Source:
+  GitHub Actions once). Keep the repo **private** if you'd rather the photos
+  weren't public — Pages still serves it.
+
+Test the public link on the actual laptop it will be played on before the
+night. Then send it with no explanation, or one line: *press start*.
