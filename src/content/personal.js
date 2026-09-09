@@ -13,6 +13,9 @@
 
 /** @typedef {'hatchback'|'sedan'|'suv'|'pickup'|'sports'} Silhouette */
 
+/** The plaque under the title, GTA-cover style ("Premium Edition"). */
+export const EDITION = 'Anniversary Edition';
+
 export const PEOPLE = {
   player:  { name: 'Jonathan', shirt: 0x2f3338 },
   partner: { name: 'Simone',   dress: 0x15141c },
@@ -290,7 +293,8 @@ export const GAME_KEY = {
   groupLen: 4,
   title: 'Redeem your code',
   hint: 'Enter the 20-character code from the card inside your game case.',
-  product: 'Our Story · Anniversary Edition',
+  edition: EDITION,
+  product: 'Jonathan & Simone · 17 September 2026',
   wrong: "That code isn't valid. Check the card and try again.",
 };
 

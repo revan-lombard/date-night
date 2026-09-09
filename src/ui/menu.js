@@ -13,7 +13,7 @@
 
 import { readMenu } from '../core/input.js';
 import { createLogo } from './logo.js';
-import { PEOPLE, PLACES, MILESTONES, CREDITS } from '../content/personal.js';
+import { PEOPLE, PLACES, MILESTONES, CREDITS, EDITION } from '../content/personal.js';
 
 const STORAGE_KEY = 'datenight.settings';
 
@@ -219,6 +219,10 @@ export function createMenu(opts) {
 
   function renderTitle() {
     panel.appendChild(createLogo());
+    const ed = document.createElement('div'); // the edition plaque, right under the wordmark
+    ed.className = 'dn-edition';
+    ed.textContent = EDITION;
+    panel.appendChild(ed);
     const tag = document.createElement('div');
     tag.className = 'dn-tag';
     tag.textContent = 'ONE TEAM · ONE MISSION · ONE GOD';
@@ -360,6 +364,9 @@ function injectStyles() {
   padding:30px 28px;box-sizing:border-box;
   background:rgba(8,7,5,.55);backdrop-filter:blur(5px);
   border:1px solid rgba(240,168,40,.22);box-shadow:0 20px 70px rgba(0,0,0,.6);}
+.dn-edition{display:inline-block;margin:-4px auto 12px;padding:5px 16px 4px;border:1.5px solid rgba(240,168,40,.75);
+  border-radius:2px;font-family:${cond};font-size:12.5px;font-weight:800;letter-spacing:.34em;text-transform:uppercase;
+  color:#f0a828;background:rgba(240,168,40,.06);box-shadow:0 0 0 3px rgba(12,11,13,.9),0 0 0 4px rgba(240,168,40,.25)}
 .dn-tag{font-family:${cond};font-size:16px;color:#f0a828;text-transform:uppercase;
   letter-spacing:.28em;font-weight:700;margin-top:-2px;opacity:.95}
 .dn-press{font-family:${cond};font-size:14px;color:#efe6d2;text-transform:uppercase;

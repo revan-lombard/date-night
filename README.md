@@ -103,7 +103,7 @@ procedural three.js.
 
 ## Deploying — the private/public switch
 
-The source lives at **github.com/revan-lombard/date-night** and stays
+The source lives at **github.com/revan-lombard/our-story** and stays
 **private** (it holds their photographs). GitHub's free plan only serves Pages
 from a public repo, so the link is switched on just for the window they play:
 
@@ -113,7 +113,9 @@ npm run site:down    # Pages off, repo → private
 ```
 
 Both need the `gh` CLI signed in (it is, on this machine). The URL is
-<https://revan-lombard.github.io/date-night/>. Test it on the actual laptop
+<https://revan-lombard.github.io/our-story/>, and the short link on the card,
+<https://tinyurl.com/ourstory2026>, redirects to it (a free TinyURL alias; it
+lives as long as TinyURL does — a custom domain is the permanent upgrade). Test it on the actual laptop
 before the night, then send it with no explanation, or one line: *press start*.
 
 Alternatives if you'd rather not toggle: GitHub Pro (Pages from a private

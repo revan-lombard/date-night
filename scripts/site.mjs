@@ -12,7 +12,7 @@
  */
 import { execSync } from 'node:child_process';
 
-const REPO = process.env.DN_REPO || 'revan-lombard/date-night';
+const REPO = process.env.DN_REPO || 'revan-lombard/our-story';
 const cmd = process.argv[2];
 const sh = (c, opts = {}) => execSync(c, { stdio: opts.quiet ? 'pipe' : 'inherit', encoding: 'utf8', ...opts });
 const api = (path, extra = '') => sh(`gh api ${extra} repos/${REPO}/${path}`, { quiet: true });

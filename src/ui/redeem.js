@@ -32,7 +32,10 @@ function injectStyles() {
   background:radial-gradient(ellipse at 50% 30%,rgba(26,18,10,.55),rgba(8,7,9,.92) 70%);font-family:${BODY};color:#ece6d6}
 .rd-panel{width:min(640px,94vw);padding:26px 30px 28px;background:rgba(12,11,13,.9);border-top:3px solid ${GOLD};
   border-bottom:3px solid ${GOLD};box-shadow:0 14px 60px rgba(0,0,0,.7);text-align:center}
-.rd-prod{font:700 12px ${COND};letter-spacing:.34em;text-transform:uppercase;color:${GOLD};margin:12px 0 2px}
+.rd-edition{display:inline-block;margin:2px auto 14px;padding:5px 16px 4px;border:1.5px solid rgba(240,168,40,.75);border-radius:2px;
+  font:800 12.5px ${COND};letter-spacing:.34em;text-transform:uppercase;color:${GOLD};background:rgba(240,168,40,.06);
+  box-shadow:0 0 0 3px rgba(12,11,13,.9),0 0 0 4px rgba(240,168,40,.25)}
+.rd-prod{font:700 12px ${COND};letter-spacing:.3em;text-transform:uppercase;color:#cfc7b6;margin:0 0 2px}
 .rd-title{font:800 30px ${COND};letter-spacing:.06em;text-transform:uppercase;color:#fff;margin:4px 0 6px}
 .rd-hint{font:500 15px/1.5 ${BODY};color:#cfc7b6;margin:0 0 20px}
 .rd-boxes{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
@@ -72,6 +75,7 @@ export function createRedeem(cfg) {
 
   panel.appendChild(createLogo({ compact: true }));
   panel.insertAdjacentHTML('beforeend',
+    `<div><div class="rd-edition">${cfg.edition}</div></div>` +
     `<div class="rd-prod">${cfg.product}</div>` +
     `<div class="rd-title">${cfg.title}</div>` +
     `<div class="rd-hint">${cfg.hint}</div>`);
