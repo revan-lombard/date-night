@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Our Story — game code card (print)</title>
+<style>
+  /* Print at 100% on A4/Letter, cut along the faint outline. Two cards per
+     sheet: one for the case, one spare. Fits a standard DVD/console case
+     (about 120 × 180 mm insert), with 8 mm bleed inside the outline. */
+  @page { margin: 12mm; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #fff; font-family: system-ui, 'Segoe UI', Roboto, sans-serif; color: #ece6d6; }
+  .sheet { display: flex; gap: 12mm; flex-wrap: wrap; padding: 6mm; }
+  .card { width: 118mm; height: 176mm; background: #0d0c0e; border: 0.4mm dashed #999; padding: 12mm 10mm; position: relative;
+    display: flex; flex-direction: column; align-items: center; text-align: center; overflow: hidden;
+    -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .card::before { content: ''; position: absolute; inset: 0;
+    background: radial-gradient(ellipse at 50% 115%, rgba(240,120,30,.35), transparent 60%),
+                radial-gradient(ellipse at 50% -20%, rgba(240,168,40,.15), transparent 55%); }
+  .card > * { position: relative; }
+  .eyebrow { font: 700 3.2mm 'Arial Narrow','Roboto Condensed',system-ui,sans-serif; letter-spacing: .34em; text-transform: uppercase; color: #f0a828; }
+  h1 { margin: 2mm 0 0; font: 800 17mm/0.95 'Arial Narrow','Roboto Condensed',Impact,system-ui,sans-serif; letter-spacing: .02em; text-transform: uppercase;
+    background: linear-gradient(180deg,#fff2d0,#e9c27a 55%,#b98a3a); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .motto { margin-top: 2mm; font: italic 600 4mm Georgia,'Times New Roman',serif; color: #f0a828; }
+  .rule { width: 60%; height: 0.3mm; background: rgba(240,168,40,.5); margin: 6mm 0; }
+  .label { font: 700 3.2mm 'Arial Narrow','Roboto Condensed',system-ui,sans-serif; letter-spacing: .3em; text-transform: uppercase; color: #cfc7b6; }
+  .code { margin: 3mm 0 1mm; padding: 3.5mm 4mm; border: 0.5mm solid rgba(240,168,40,.6); border-radius: 1.5mm; background: rgba(255,255,255,.04);
+    font: 700 6.2mm 'Cascadia Mono','Consolas',ui-monospace,monospace; letter-spacing: .12em; color: #fff; white-space: nowrap; }
+  .url { margin-top: 5mm; font: 700 4.6mm 'Cascadia Mono','Consolas',ui-monospace,monospace; color: #36c5ff; letter-spacing: .02em; }
+  .steps { margin: 5mm 0 0; padding: 0; list-style: none; font: 500 3.6mm/1.6 system-ui,sans-serif; color: #e6dfd0; text-align: left; }
+  .steps li { display: flex; gap: 3mm; align-items: baseline; }
+  .steps b { color: #f0a828; font: 800 3.6mm 'Arial Narrow','Roboto Condensed',system-ui,sans-serif; min-width: 5mm; }
+  .foot { margin-top: auto; font: 600 3mm system-ui,sans-serif; color: rgba(236,230,214,.55); letter-spacing: .05em; }
+  .foot b { color: #f0a828; }
+  .hearts { color: #ff5c8a; letter-spacing: .6mm; font-size: 4mm; margin-top: 2mm; }
+  @media screen { body { background: #444; } .sheet { justify-content: center; } }
+</style>
+</head>
+<body>
+<div class="sheet">
+  <div class="card">
+    <div class="eyebrow">Jonathan &amp; Simone · Anniversary Edition</div>
+    <h1>Our<br>Story</h1>
+    <div class="motto">One team. One mission. One God.</div>
+    <div class="rule"></div>
+    <div class="label">Game code</div>
+    <div class="code">E30G-MRPH-2016-1709-TEAM</div>
+    <div class="label" style="margin-top:4mm">Redeem at</div>
+    <div class="url">revan-lombard.github.io/date-night</div>
+    <ol class="steps">
+      <li><b>1</b><span>Open the link on a laptop, in Chrome. Sound on.</span></li>
+      <li><b>2</b><span>Enter the game code. Dashes optional.</span></li>
+      <li><b>3</b><span>Press Start. WASD or a controller. One sitting, about 15 minutes.</span></li>
+    </ol>
+    <div class="hearts">♥♥♥♥♥♥♥♥♥♥</div>
+    <div class="foot">17 September 2026 · <b>Ten years</b> · Three married · Campaign status: ongoing</div>
+  </div>
+
+  <div class="card">
+    <div class="eyebrow">Jonathan &amp; Simone · Anniversary Edition</div>
+    <h1>Our<br>Story</h1>
+    <div class="motto">One team. One mission. One God.</div>
+    <div class="rule"></div>
+    <div class="label">Game code</div>
+    <div class="code">E30G-MRPH-2016-1709-TEAM</div>
+    <div class="label" style="margin-top:4mm">Redeem at</div>
+    <div class="url">revan-lombard.github.io/date-night</div>
+    <ol class="steps">
+      <li><b>1</b><span>Open the link on a laptop, in Chrome. Sound on.</span></li>
+      <li><b>2</b><span>Enter the game code. Dashes optional.</span></li>
+      <li><b>3</b><span>Press Start. WASD or a controller. One sitting, about 15 minutes.</span></li>
+    </ol>
+    <div class="hearts">♥♥♥♥♥♥♥♥♥♥</div>
+    <div class="foot">17 September 2026 · <b>Ten years</b> · Three married · Campaign status: ongoing</div>
+  </div>
+</div>
+</body>
+</html>

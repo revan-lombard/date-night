@@ -277,6 +277,23 @@ export const STORY = [
     text: '' },
 ];
 
+/**
+ * The GAME CODE printed on the card inside the case. The first screen asks for
+ * it, console-style; once redeemed it's remembered on that machine.
+ * Only the code's fingerprint ships — mint one for a new code with
+ *   npm run key -- XXXX-XXXX-XXXX-XXXX-XXXX
+ * Current code: E30G-MRPH-2016-1709-TEAM  (E30·GP, Murphy's, 2016, 17/09, one team)
+ */
+export const GAME_KEY = {
+  hash: '679b52c7c71c5acd',
+  groups: 5,      // XXXX-XXXX-XXXX-XXXX-XXXX
+  groupLen: 4,
+  title: 'Redeem your code',
+  hint: 'Enter the 20-character code from the card inside your game case.',
+  product: 'Our Story · Anniversary Edition',
+  wrong: "That code isn't valid. Check the card and try again.",
+};
+
 export const CREDITS = {
   // Who made this, for the last card. TODO(confirm) — put your name how you'd like it read.
   madeBy: 'Revan',

@@ -10,7 +10,8 @@
     "preview": "vite preview",
     "zip": "vite build && node -e \"const {execSync}=require('child_process');execSync(process.platform==='win32'?'powershell -NoProfile -Command Compress-Archive -Force -Path dist/* -DestinationPath date-night-dist.zip':'cd dist && zip -qr ../date-night-dist.zip .',{stdio:'inherit'})\"",
     "site:up": "node scripts/site.mjs up",
-    "site:down": "node scripts/site.mjs down"
+    "site:down": "node scripts/site.mjs down",
+    "key": "node scripts/key.mjs"
   },
   "dependencies": {
     "lil-gui": "^0.21.0",

@@ -31,6 +31,7 @@ import { createAyah } from './world/ayah.js';
 import { dressShops } from './world/dressing.js';
 import { hangFrames } from './world/frames.js';
 import { createCredits } from './ui/credits.js';
+import { createRedeem } from './ui/redeem.js';
 import { createCrossing } from './world/crossing.js';
 import { createCollision } from './world/collision.js';
 import { createVehicle, DEFAULT_HANDLING } from './car/vehicle.js';
@@ -52,7 +53,7 @@ import { createDateScene } from './date/scene.js';
 import { createDialogue } from './date/dialogue.js';
 import { createLoveMeter } from './date/meter.js';
 import { NODES, START } from './content/dialogue.js';
-import { CAR, PEOPLE, PLACES, CALL, FLORIST, SUITS, PLAYER_HEIGHT, CHARACTERS, ENDINGS, DATE_OPENERS, LOOKS, TEXTS, STORY, LETTER, CREDITS, MILESTONES } from './content/personal.js';
+import { CAR, PEOPLE, PLACES, CALL, FLORIST, SUITS, PLAYER_HEIGHT, CHARACTERS, ENDINGS, DATE_OPENERS, LOOKS, TEXTS, STORY, LETTER, CREDITS, MILESTONES, GAME_KEY } from './content/personal.js';
 
 const ENTER_DIST = 3.8; // metres — how close on foot to enter the car
 const EXIT_MAX_SPEED = 2; // m/s — must be nearly stopped to get out
@@ -533,6 +534,7 @@ function startEpilogue() {
 
 /** Rolled up outside the house — the campaign card, then "Our Story" rolls. */
 const credits = createCredits({ story: STORY, letter: LETTER, credits: CREDITS, milestones: MILESTONES, partner: PEOPLE.partner, player: PEOPLE.player });
+const redeem = createRedeem(GAME_KEY);
 function finishNight() {
   epilogueDone = true;
   waypoint.setVisible(false);
@@ -791,7 +793,9 @@ async function init() {
   carryParent = avatar.group; // the bouquet attaches here once bought
 
   hud.setVisible(false); // kept hidden behind the title until the game starts
-  menu.showTitle(); // present the start menu over the live dusk scene
+  // The game case: redeem the code once on this machine, then straight to the title.
+  if (loadSave().redeemed || new URLSearchParams(location.search).has('redeemed')) menu.showTitle();
+  else redeem.show(() => { updateSave({ redeemed: true }); menu.showTitle(); });
   loop.start();
 }
 
@@ -920,7 +924,7 @@ function stepRender(alpha, frameDt) {
   hud.setVisible(gameStarted && !menu.isOpen && !dateActive); // no HUD behind menus or the dinner
   // Attract mode: while the title is up, drift slowly around the dusk city —
   // the menu floats over living key art instead of a black void (GTA-style).
-  if (!gameStarted && menu.isOpen) {
+  if (!gameStarted && (menu.isOpen || redeem.isOpen)) {
     titleAngle += frameDt * 0.035;
     const cy = terrainHeight(0, 0);
     // Low and slow — skyline against the dusk band, not a rooftop survey.
@@ -1113,6 +1117,7 @@ if (import.meta.env.DEV) {
     finishNight() { finishNight(); },
     rollCredits() { rollCredits(); },
     get _credits() { return credits; },
+    get _redeem() { return redeem; },
     text(msg) { phone.text(PEOPLE.partner.name, msg); },
   };
 }

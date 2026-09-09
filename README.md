@@ -49,6 +49,21 @@ gamepad supported throughout (Ⓐ confirm, R3 camera, Back skips a long drive).
   then *Our Story* as a credits roll — every mission from her PDF with the
   photos — then her letter, word for word, then the makers.
 
+## The game case
+
+The first screen asks for a **game code**, console-style, before the title.
+The code is remembered on that machine once redeemed (add `?redeemed` to the
+URL to skip it when testing, or clear site data to see it again).
+
+- Current code: **`E30G-MRPH-2016-1709-TEAM`** (E30·GP, Murphy's, 2016, 17/09, one team).
+  Dashes and case don't matter when typing it.
+- Only the code's fingerprint ships in the bundle (`GAME_KEY.hash`). To change
+  the code: `npm run key -- NEW-CODE-HERE`, paste the hash into `GAME_KEY` in
+  `src/content/personal.js`, redeploy.
+- **Print the card:** open `extras/game-code-card.html` in Chrome → Print →
+  100% scale, colour, background graphics on. Two 118 × 176 mm cards per sheet,
+  cut on the dashed line — one for the case, one spare.
+
 ## The characters
 
 Jonathan and Simone are painted onto a rigged mannequin **by body region** from
