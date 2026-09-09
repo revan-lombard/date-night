@@ -13,6 +13,7 @@
 import * as THREE from 'three';
 import { buildChassis } from '../car/chassis.js';
 import { ROAD_LINES, ROAD, CITY_EXTENT } from './layout.js';
+import { terrainNormal } from './terrain.js';
 
 /** Street palette — SA suburbia: whites, silvers, and the odd bold one. */
 const PAINT = [0xd8d8d4, 0xb8bcc0, 0x7b8087, 0x3a3f45, 0x8c1f28, 0x2a4d69, 0x9c8455, 0xe0d6c2];
@@ -22,7 +23,6 @@ const SILHOUETTES = ['hatchback', 'sedan', 'suv', 'pickup', 'sports'];
 const KERB_IN = 2.0;   // metres from the kerb line to the car's centre
 const CLEAR_XING = 11; // keep clear of intersection centres
 const SPACING = 8;     // min distance between parked cars
-const DECK = 0.1;      // road deck sits this far above the terrain height
 
 /**
  * @param {THREE.Scene} scene
@@ -63,8 +63,14 @@ export function createParkedCars(scene, heightAt, opts = {}) {
     const chassis = buildChassis({ silhouette, bodyColor: pick(PAINT), accentColor: pick(ACCENT) });
     // Nose along the road; right-hand traffic-side flip so both kerbs look right.
     const heading = (alongZ ? 0 : Math.PI / 2) + (side > 0 ? Math.PI : 0) + (rng() - 0.5) * 0.05;
-    chassis.group.position.set(x, heightAt(x, z) + DECK, z);
-    chassis.group.rotation.y = heading;
+    chassis.group.position.set(x, heightAt(x, z), z);
+    // Sit ON the road's slope, not floating flat above it: align up with the
+    // terrain normal, then yaw along the street.
+    const up = new THREE.Vector3(0, 1, 0);
+    const n = terrainNormal(x, z, new THREE.Vector3());
+    chassis.group.quaternion
+      .setFromUnitVectors(up, n)
+      .multiply(new THREE.Quaternion().setFromAxisAngle(up, heading));
     group.add(chassis.group);
 
     const hx = alongZ ? chassis.width / 2 + 0.2 : chassis.length / 2 + 0.3;

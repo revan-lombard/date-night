@@ -236,21 +236,22 @@ export function createDateUI() {
     },
 
     /** Swap the dialogue furniture for a centred ending card.
-     *  @param {string} html @param {(() => void)=} onReplay adds a replay button */
-    card(html, onReplay) {
+     *  @param {string} html @param {(() => void)=} onAction adds an action button
+     *  @param {string} [label] the button's label */
+    card(html, onAction, label = '↻  Relive the night') {
       panel.style.display = 'none';
       meterWrap.style.display = 'none';
       cardShown = true;
-      replayCb = onReplay ?? null;
+      replayCb = onAction ?? null;
       cardEl.innerHTML = html;
-      if (onReplay) {
+      if (onAction) {
         const b = document.createElement('button');
         b.type = 'button';
-        b.textContent = '↻  Relive the night';
+        b.textContent = label;
         b.style.cssText =
           `margin-top:18px;padding:10px 26px;border:none;background:${GOLD};color:#141414;` +
           `font:800 15px ${COND};letter-spacing:.18em;text-transform:uppercase;cursor:pointer;`;
-        b.addEventListener('click', onReplay);
+        b.addEventListener('click', onAction);
         cardEl.appendChild(b);
       }
       cardEl.style.display = 'block';

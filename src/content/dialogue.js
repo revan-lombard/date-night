@@ -85,10 +85,10 @@ export const NODES = {
   // Every answer is kind: grief is not a quiz.
   ayah: {
     speaker: 'partner',
-    line: "You know who would have loved tonight? Ayah. Curled up right under this table.",
+    line: "You feel that? Like Ayah's right here with us — curled up under the table, same as every dinner.",
     mood: 'warm',
     choices: [
-      { text: 'Best girl. Her place in the story stays.',   love: +8, next: 'q6' },
+      { text: 'She is. Best girl never misses a dinner.',   love: +8, next: 'q6' },
       { text: '[Say nothing. Squeeze her hand.]',           love: +6, next: 'q6' },
       { text: "Don't you make me cry at dinner, Simone.",   love: +4, next: 'q6' },
     ],

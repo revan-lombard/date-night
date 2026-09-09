@@ -60,6 +60,10 @@ const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'hi
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+// Filmic tone mapping — the single cheapest "looks like a real game" switch:
+// dusk oranges roll off instead of clipping, blacks keep detail.
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.15;
 app.appendChild(renderer.domElement);
 
 // --- Scene + camera -------------------------------------------------------
@@ -132,7 +136,7 @@ const onShopBlock = (lot) => shopCentres.some((c) => Math.abs(lot.x - c.x) < BLO
 const ayah = createAyah(
   scene,
   shops.coffee.door.x - 2.4,
-  terrainHeight(shops.coffee.door.x - 2.4, shops.coffee.door.z + 2.4) + 0.12,
+  terrainHeight(shops.coffee.door.x - 2.4, shops.coffee.door.z + 2.4) + 0.02,
   shops.coffee.door.z + 2.4,
   Math.PI, // facing the street, watching him arrive
 );
@@ -148,16 +152,29 @@ const parked = createParkedCars(scene, terrainHeight, {
 });
 
 let collision = createCollision(city.colliders.filter((c) => !onShopBlock({ x: (c.minX + c.maxX) / 2, z: (c.minZ + c.maxZ) / 2 })).concat(shops.colliders, parked.colliders));
+/** Interiors have FLAT floor slabs over rolling terrain — standing on the
+ *  terrain inside them sank your legs through the boards. Inside a room the
+ *  ground IS the slab. */
+const roomList = [shops.flower, shops.coffee, shops.tailor, shops.home];
+function roomAt(x, z) {
+  for (const r of roomList) {
+    const b = r.bounds;
+    if (x > b.minX && x < b.maxX && z > b.minZ && z < b.maxZ) return r;
+  }
+  return null;
+}
+
 /** Facade the car + player use to follow ground and bump off buildings.
  *  `collide` reads `collision` by reference so it picks up the kit rebuild. */
 const world = {
-  height: (x, z) => terrainHeight(x, z),
-  normal: (x, z, out) => terrainNormal(x, z, out),
+  height: (x, z) => { const r = roomAt(x, z); return r ? r.floorY : terrainHeight(x, z); },
+  normal: (x, z, out) => { const r = roomAt(x, z); if (r) { out.set(0, 1, 0); return out; } return terrainNormal(x, z, out); },
   collide: (x, z, r) => collision.resolveCircle(x, z, r),
 };
 
 // Mission stops: the florist first, then the coffee shop (the venue).
 const TAILOR_STOP = { x: shops.tailor.door.x, z: shops.tailor.door.z, y: terrainHeight(shops.tailor.door.x, shops.tailor.door.z) };
+const HOME_STOP = { x: shops.home.door.x, z: shops.home.door.z, y: terrainHeight(shops.home.door.x, shops.home.door.z) };
 const FLORIST_STOP = { x: shops.flower.door.x, z: shops.flower.door.z, y: terrainHeight(shops.flower.door.x, shops.flower.door.z) };
 const VENUE = { x: shops.coffee.door.x, z: shops.coffee.door.z, y: terrainHeight(shops.coffee.door.x, shops.coffee.door.z) };
 const waypoint = createWaypoint(scene, FLORIST_STOP, FLORIST_STOP.y); // director retargets florist -> coffee
@@ -185,6 +202,16 @@ const skids = createSkidMarks(scene);
 const crossing = createCrossing(scene);
 let crossingDone = false; // once per night — a beat, not a hazard
 let crossingBanner = 0;
+
+// --- First-person driving view (V / pad R3) --------------------------------
+let fpView = false;
+const _fpEye = new THREE.Vector3();
+const _fpLook = new THREE.Vector3();
+function toggleFp() {
+  fpView = !fpView;
+  if (!fpView) carCam.adopt(camera.position); // spring smoothly back out
+}
+window.addEventListener('keydown', (e) => { if (e.code === 'KeyV') toggleFp(); });
 
 // --- Mouse-look (click canvas to lock pointer) ----------------------------
 const mouse = createMouseLook(renderer.domElement);
@@ -369,14 +396,21 @@ let dateActive = false;
 let dateEnded = false;
 let dateCountdown = 0; // seconds of arrival banner before the date begins
 
-/** Present one dialogue node: her line, then his three choices. */
+/** Present one dialogue node: her line, then his three choices — in a
+ *  SHUFFLED order, so the best answer isn't always the first button. */
+let shownChoices = []; // displayed order (post-shuffle), for tests/telemetry
 function presentNode(node, choices) {
   dateScene.setMood(node.mood ?? loveMeter.mood());
   dateScene.setShot('partner');
+  shownChoices = [...choices];
+  for (let i = shownChoices.length - 1; i > 0; i--) { // Fisher–Yates
+    const j = (Math.random() * (i + 1)) | 0;
+    [shownChoices[i], shownChoices[j]] = [shownChoices[j], shownChoices[i]];
+  }
   dateUI.say(PEOPLE.partner.name.toUpperCase(), node.line, () => {
     dateScene.setShot('choices');
-    dateUI.offer(choices.map((c) => c.text), (i) => {
-      const c = choices[i];
+    dateUI.offer(shownChoices.map((c) => c.text), (i) => {
+      const c = shownChoices[i];
       audio.blip();
       dateUI.meterTick(loveMeter.add(c.love), c.love);
       if (c.love) audio.meterTick(c.love > 0);
@@ -443,13 +477,68 @@ function endDate() {
     `<div style="font:800 30px ${f.cond};letter-spacing:.04em;text-transform:uppercase;margin:8px 0 12px">${end.title}</div>` +
     `<div style="font:500 16px/1.6 ${f.body};max-width:560px;margin:0 auto">${end.message}</div>` +
     `<div style="font:700 14px ${f.cond};letter-spacing:.2em;color:#ff5c8a;margin-top:14px">${scoreLine}</div>` +
-    `<div style="font:700 12px ${f.cond};letter-spacing:.26em;color:${f.gold};text-transform:uppercase;margin-top:14px">Campaign status: ongoing · To be continued</div>` +
-    `<div style="font:600 12px ${f.body};opacity:.5;margin-top:8px">(R · Ⓐ · click)</div>`,
-    () => location.reload(),
+    `<div style="font:600 12px ${f.body};opacity:.5;margin-top:8px">(R replays the night)</div>`,
+    startEpilogue,
+    '🚗  Drive her home',
   );
   dateEnded = true;
 }
 window.addEventListener('keydown', (e) => { if (dateEnded && e.code === 'KeyR') location.reload(); });
+
+// --- Epilogue: the drive home, together ------------------------------------
+let epilogueActive = false;
+let epilogueDone = false;
+function startEpilogue() {
+  if (epilogueActive) return;
+  epilogueActive = true;
+  dateActive = false; // release camera + HUD back to the world
+  dateUI.hide();
+  dateScene.end();
+  audio.dateMusic(false); // just the night hum and the engine now
+  // The two of them into the E30 outside Murphy's, nose pointed home.
+  const d = shops.coffee.door;
+  const heading = Math.atan2(shops.home.door.x - d.x, shops.home.door.z - d.z);
+  vehicle.reset(d.x + 3, d.z - 3, heading);
+  mode = 'driving';
+  player?.setVisible(false);
+  if (partnerAvatar) { // Simone rides passenger (left seat — this is SA)
+    partnerAvatar.group.removeFromParent();
+    vehicle.tilt.add(partnerAvatar.group);
+    partnerAvatar.group.position.set(-0.34, -0.55, 0.12); // sunk to seated height — head at the window line
+    partnerAvatar.group.rotation.set(0, 0, 0);
+    partnerAvatar.setState('idle');
+  }
+  mouse.yaw = heading;
+  carCam.snap();
+  waypoint.setTarget(HOME_STOP, HOME_STOP.y);
+  waypoint.setVisible(true);
+  route.setTarget(HOME_STOP);
+  route.setVisible(true);
+  hud.setMission('Take her home');
+  hud.setLocation('GERMISTON');
+}
+
+/** Rolled up outside the house — the campaign card, and the night is done. */
+function finishNight() {
+  epilogueDone = true;
+  waypoint.setVisible(false);
+  route.setVisible(false);
+  hud.setMission(null);
+  hud.setPrompt(null);
+  hud.setObjective(null);
+  hud.setArrow(null);
+  const f = hud.fonts;
+  dateUI.show();
+  dateUI.card(
+    `<div style="font:700 13px ${f.cond};letter-spacing:.28em;color:${f.gold};text-transform:uppercase">17 September 2026 · Radiokop</div>` +
+    `<div style="font:800 32px ${f.cond};letter-spacing:.05em;text-transform:uppercase;margin:10px 0 4px">10 Years Together</div>` +
+    `<div style="font:800 20px ${f.cond};letter-spacing:.08em;text-transform:uppercase;color:#7be08a">Mission accomplished ✓</div>` +
+    `<div style="font:700 13px ${f.cond};letter-spacing:.26em;color:${f.gold};text-transform:uppercase;margin-top:14px">Campaign status: ongoing</div>` +
+    `<div style="font:800 26px ${f.cond};letter-spacing:.1em;text-transform:uppercase;margin:8px 0 10px">To be continued</div>` +
+    `<div style="font:600 15px ${f.body};font-style:italic;opacity:.9">One team. One Mission. One God.</div>`,
+    () => location.reload(),
+  );
+}
 
 bus.on('act', (a) => {
   if (a === 'SPAWN') { hud.setMission('Head out to the E30'); hud.setLocation('RADIOKOP'); }
@@ -522,12 +611,17 @@ window.addEventListener('keydown', (e) => { if (e.code === 'Escape') togglePause
 
 let startWasDown = false;
 let backWasDown = false;
+let r3WasDown = false;
 function pollPauseButton() {
   const pads = navigator.getGamepads?.();
   const gp = pads ? [...pads].find(Boolean) : null;
   const down = !!gp?.buttons?.[9]?.pressed;
   if (down && !startWasDown && !menu.isOpen) togglePause();
   startWasDown = down;
+  // R3 (right-stick click) = toggle first-person, matching the V key.
+  const r3 = !!gp?.buttons?.[11]?.pressed;
+  if (r3 && !r3WasDown) toggleFp();
+  r3WasDown = r3;
   // Back/Select = skip the drive, once the offer is up (K on keyboard).
   const back = !!gp?.buttons?.[8]?.pressed;
   if (back && !backWasDown && skipOffered() && mode === 'driving' && isDriving()) {
@@ -661,7 +755,7 @@ let lastRender = performance.now();
 function stepUpdate(dt, input) {
   lastLook = input.look || lastLook;
   pickPanel.update(); // controller nav for the bouquet picker
-  const frozen = director?.act === 'ARRIVE' || menu?.isOpen || pickPanel.isOpen;
+  const frozen = (director?.act === 'ARRIVE' && !epilogueActive) || epilogueDone || menu?.isOpen || pickPanel.isOpen;
   if (!frozen) {
     // F rising edge: context action — mirror, suit, flowers, else the car.
     if (input.enter && !enterWasDown) {
@@ -712,6 +806,14 @@ function stepUpdate(dt, input) {
   }
   if (crossingBanner > 0) { crossingBanner -= dt; if (crossingBanner <= 0) hud.setBanner(null); }
   crossing.update(dt, mode === 'driving' ? vehicle.getState() : null);
+
+  // Epilogue arrival: rolled up at home, nice and easy — the night is done.
+  if (epilogueActive && !epilogueDone) {
+    const c = vehicle.getState();
+    if (Math.hypot(c.x - HOME_STOP.x, c.z - HOME_STOP.z) < 10 && Math.abs(vehicle.getSpeed()) < 5) {
+      finishNight();
+    }
+  }
   // Ringtone while she's calling; night hum once the game is running.
   audio.ring((director?.act === 'CALL' || director?.act === 'CALLBACK') && phone.state === 'ringing');
   audio.ambience(gameStarted && !menu.isOpen);
@@ -721,8 +823,9 @@ function stepUpdate(dt, input) {
     setReadyBanner -= dt;
     if (setReadyBanner <= 0) { hud.setBanner(null); director?.getReady(); }
   }
-  // Arrival banner → the date, after a beat.
-  if (director?.act === 'ARRIVE' && !dateActive && !menu.isOpen) {
+  // Arrival banner → the date, after a beat. (Never re-fires once the night
+  // has moved on to the epilogue — that used to teleport him back to dinner.)
+  if (director?.act === 'ARRIVE' && !dateActive && !dateEnded && !epilogueActive && !menu.isOpen) {
     dateCountdown -= dt;
     if (dateCountdown <= 0) startDate();
   }
@@ -771,7 +874,25 @@ function stepRender(alpha, frameDt) {
     if (Math.abs(vehicle.getSpeed()) > 2.5) {
       mouse.yaw = lerpAngle(mouse.yaw, pose.heading, 1 - Math.exp(-2.2 * frameDt));
     }
-    carCam.update(pose, frameDt, mouse.yaw, mouse.pitch);
+    if (fpView) {
+      // Behind the wheel (right-hand drive, this is Gauteng): eye at the
+      // driver's seat in the car's tilted frame, free-look with the mouse.
+      vehicle.root.updateMatrixWorld(true);
+      _fpEye.set(0.34, 1.07, 0.12).applyMatrix4(vehicle.tilt.matrixWorld);
+      camera.position.copy(_fpEye);
+      const pitch = mouse.pitch - 0.16; // chase default reads as "level" here
+      _fpLook.set(
+        _fpEye.x + Math.sin(mouse.yaw) * Math.cos(pitch),
+        _fpEye.y - Math.sin(pitch),
+        _fpEye.z + Math.cos(mouse.yaw) * Math.cos(pitch),
+      );
+      camera.lookAt(_fpLook);
+      const sr = Math.min(1, Math.abs(vehicle.getSpeed()) / handling.maxSpeed);
+      camera.fov = 62 + sr * 13; // speed widens the view in FP too
+      camera.updateProjectionMatrix();
+    } else {
+      carCam.update(pose, frameDt, mouse.yaw, mouse.pitch);
+    }
     sunTarget.position.set(pose.x, pose.y || 0, pose.z);
     hud.setSpeed(Math.abs(vehicle.getSpeed()) * 3.6, true);
     hud.setPrompt(
@@ -806,6 +927,13 @@ function stepRender(alpha, frameDt) {
     route.update(p);
     route.setVisible(true);
     hud.setRoute(route.points);
+  } else if (epilogueActive && !epilogueDone) {
+    const p = activeXZ();
+    hud.setObjective(null);
+    hud.setArrow(waypoint.screenArrow(camera, window.innerWidth, window.innerHeight));
+    route.update(p);
+    route.setVisible(true);
+    hud.setRoute(route.points);
   } else if (director?.act === 'AT_FLORIST' || director?.act === 'AT_TAILOR') {
     hud.setObjective({ remaining: timer.remaining, lateness: timer.lateness, distance: null });
     hud.setArrow(null);
@@ -821,9 +949,9 @@ function stepRender(alpha, frameDt) {
   renderer.render(scene, camera);
 }
 
-/** Waypoint blip for the radar — the current destination (florist or venue). */
+/** Waypoint blip for the radar — the current destination (any active leg). */
 function waypointBlips() {
-  if (!isDriving()) return [];
+  if (!isDriving() && !(epilogueActive && !epilogueDone)) return [];
   const p = waypoint.position;
   return [{ x: p.x, z: p.z, kind: 'waypoint' }];
 }
@@ -900,6 +1028,10 @@ if (import.meta.env.DEV) {
     // Finish the typewriter / advance past a finished line, then render.
     dateAdvance() { dateUI.progressLine(); stepRender(1, 1 / 60); },
     dateChoose(i) { dateUI.choose(i); stepRender(1, 1 / 60); },
+    get choiceLoves() { return shownChoices.map((c) => c.love); }, // displayed order
+    beginEpilogue() { startEpilogue(); },
+    get epilogueActive() { return epilogueActive; },
+    get epilogueDone() { return epilogueDone; },
   };
 }
 

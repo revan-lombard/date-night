@@ -9,6 +9,6 @@ export default defineConfig({
     assetsInlineLimit: 0,
   },
   server: {
-    open: true,
+    open: false, // the Browser pane / your own tab opens it; no surprise windows
   },
 });

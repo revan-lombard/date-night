@@ -128,7 +128,7 @@ export function createHUD(minimap) {
     `color:#d5d0c4;font:600 10.5px ${BODY};line-height:1.55;letter-spacing:.01em;`;
   const key = (k) => `<b style="color:${GOLD_HI}">${k}</b>`;
   controls.innerHTML =
-    `${key('WASD')} drive · ${key('Shift')} sprint<br>` +
+    `${key('WASD')} drive · ${key('Shift')} sprint · ${key('V')} camera<br>` +
     `${key('Space')} jump / handbrake<br>` +
     `${key('F')} in&nbsp;/&nbsp;out · ${key('H')} horn<br>` +
     `${key('Mouse')} look · ${key('Esc')} pause`;
