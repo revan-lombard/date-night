@@ -28,6 +28,8 @@ jobs:
           path: dist
   deploy:
     needs: build
+    # Pages needs a public repo on the free plan - skip quietly while private.
+    if: ${{ !github.event.repository.private }}
     runs-on: ubuntu-latest
     environment:
       name: github-pages

@@ -29,7 +29,7 @@ gamepad supported throughout (Ⓐ confirm, R3 camera, Back skips a long drive).
 | 4 The date (ten beats, meter, moods) | ✅ done |
 | 5 Endings, epilogue drive home, *Our Story* credits, her letter | ✅ done |
 | 6 Audio (synth engine, screech, ring, texts, date loop; optional real call) | ✅ done |
-| 7 Ship | ✅ builds clean (≈6.5 MB) · ⬜ deploy + test on the actual laptop |
+| 7 Ship | ✅ builds clean (≈6.5 MB) · repo private with a public-link switch · ⬜ test on the actual laptop |
 
 ## What's in the night
 
@@ -86,17 +86,20 @@ original); check its licence page before publishing anywhere public.
 Photographs are the couple's own, from *Our Story*. Everything else is
 procedural three.js.
 
-## Deploying
+## Deploying — the private/public switch
 
-`vite.config.js` uses relative paths, so `dist/` works on GitHub Pages,
-Netlify, or any static host:
+The source lives at **github.com/revan-lombard/date-night** and stays
+**private** (it holds their photographs). GitHub's free plan only serves Pages
+from a public repo, so the link is switched on just for the window they play:
 
-- **Netlify Drop** — run `npm run build`, drag the `dist/` folder onto
-  <https://app.netlify.com/drop>. One link, done.
-- **GitHub Pages** — push to a GitHub repo; `.github/workflows/deploy.yml`
-  builds and publishes on every push to `main` (enable Pages → Source:
-  GitHub Actions once). Keep the repo **private** if you'd rather the photos
-  weren't public — Pages still serves it.
+```bash
+npm run site:up      # repo → public, Pages on, build + deploy, prints the URL
+npm run site:down    # Pages off, repo → private
+```
 
-Test the public link on the actual laptop it will be played on before the
-night. Then send it with no explanation, or one line: *press start*.
+Both need the `gh` CLI signed in (it is, on this machine). The URL is
+<https://revan-lombard.github.io/date-night/>. Test it on the actual laptop
+before the night, then send it with no explanation, or one line: *press start*.
+
+Alternatives if you'd rather not toggle: GitHub Pro (Pages from a private
+repo), or `npm run zip` and drag `date-night-dist.zip` onto Netlify Drop.
