@@ -37,9 +37,14 @@
   .foot b { color: #f0a828; }
   .hearts { color: #ff5c8a; letter-spacing: .6mm; font-size: 4mm; margin-top: 2mm; }
   @media screen { body { background: #444; } .sheet { justify-content: center; } }
+  body.single { background: #0d0c0e; }
+  body.single .sheet { padding: 0; gap: 0; display: block; }
+  body.single .card { border: none; }
+  body.single .card + .card { display: none; }
 </style>
 </head>
 <body>
+<script>if (location.search.includes('single')) document.body.className = 'single';</script>
 <div class="sheet">
   <div class="card">
     <h1>Our<br>Story</h1>
