@@ -65,7 +65,7 @@ function svgMarkup(id) {
     `<polygon points="60,0 210,0 120,240 0,240 0,120" fill="#ffffff" opacity="0.05"/>`;
 
   return `
-<svg viewBox="0 0 520 240" width="100%" height="auto" role="img"
+<svg viewBox="0 0 520 240" width="100%" role="img"
      aria-label="OUR STORY" style="overflow:visible;display:block">
   <defs>
     <linearGradient id="${id}g" x1="0" y1="0" x2="0.1" y2="1">

@@ -29,7 +29,7 @@ gamepad supported throughout (Ⓐ confirm, R3 camera, Back skips a long drive).
 | 4 The date (ten beats, meter, moods) | ✅ done |
 | 5 Endings, epilogue drive home, *Our Story* credits, her letter | ✅ done |
 | 6 Audio (synth engine, screech, ring, texts, date loop; optional real call) | ✅ done |
-| 7 Ship | ✅ builds clean (≈6.5 MB) · repo private with a public-link switch · ⬜ test on the actual laptop |
+| 7 Ship | ✅ v1.0 live · boot screen, link previews, auto quality step-down · ⬜ test on the actual laptop |
 
 ## What's in the night
 
@@ -84,10 +84,13 @@ Everything personal lives in **`src/content/personal.js`** — search `TODO(conf
    **flower** (`FLORIST.favourite`, currently Sunflowers).
 2. **A private running joke**, if there's one beyond the motto (`MILESTONES.runningJoke`).
 3. **Your name** on the credits card (`CREDITS.madeBy`).
-4. **The call recording** — record Simone reading the three lines in
-   `CALL.lines` and save it as **`public/audio/call.mp3`**. It plays when he
-   answers; the subtitles still type out; the call stays open until she's done.
-   Without the file the text-only call plays as before.
+4. **The call recording** — Simone reads the three lines in `CALL.lines`
+   (one take, natural pauses between lines). Drop the file in `public/audio/`
+   as `call.mp3` / `call.m4a` / `call.opus` / `call.ogg` / `call.wav` — a
+   WhatsApp voice note works as-is, no converting. It plays when he answers;
+   the subtitles still type out; the call stays open until she's finished.
+   Optional second take for the ring-back after a declined call: `call-decline.*`
+   reading `CALL.declineLines`. Without files, the text-only call plays.
 5. **Glasses** — Jonathan wears them in the proposal photo, not at the wedding.
    Set `LOOKS.player.glasses = 0x2a2624` to add them.
 6. Read the two non-best `ENDINGS` out loud once. The letter in `LETTER` is hers verbatim.

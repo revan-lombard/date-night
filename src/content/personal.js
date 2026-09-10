@@ -104,10 +104,13 @@ export const PLACES = {
 };
 
 export const CALL = {
-  // Optional real recording of her reading `lines` — drop it at public/audio/call.mp3
-  // (mp3 / m4a / ogg all fine). The subtitles still type out; the text fallback
-  // is what plays when the file is absent.
-  audioFile: 'audio/call.mp3',
+  // Optional real recording of her reading `lines`. Drop it in public/audio/ as
+  // call.<ext> — the first of these that exists is used, so a WhatsApp voice
+  // note (.opus / .m4a) works as-is, no converting. The subtitles still type
+  // out; the call stays open until she's finished; without a file it's text-only.
+  audioFiles: ['audio/call.mp3', 'audio/call.m4a', 'audio/call.ogg', 'audio/call.opus', 'audio/call.wav', 'audio/call.aac'],
+  // Same for the ring-back after a declined call (optional, separate take).
+  declineAudioFiles: ['audio/call-decline.mp3', 'audio/call-decline.m4a', 'audio/call-decline.ogg', 'audio/call-decline.opus', 'audio/call-decline.wav'],
   lines: [
     'Babe — where are you?',
     "Don't tell me the E30 won't start again.",

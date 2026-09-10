@@ -3,19 +3,58 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <meta name="theme-color" content="#1a2036" />
-    <title>Date Night</title>
+    <meta name="theme-color" content="#0d0c0e" />
+    <title>Our Story — Anniversary Edition</title>
+    <meta name="description" content="A short driving-and-dinner game for one couple. Press start." />
+    <meta name="robots" content="noindex, nofollow" />
+    <link rel="icon" type="image/png" href="./favicon.png" />
+    <!-- Link previews (WhatsApp, email, iMessage): the poster, not a blank card. -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Our Story" />
+    <meta property="og:title" content="Our Story — Anniversary Edition" />
+    <meta property="og:description" content="A game made for two people. Enter the code from your case, then press start." />
+    <meta property="og:url" content="https://revan-lombard.github.io/our-story/" />
+    <meta property="og:image" content="https://revan-lombard.github.io/our-story/og.jpg" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:image" content="https://revan-lombard.github.io/our-story/og.jpg" />
     <style>
       :root { color-scheme: dark; }
-      html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; background: #1a2036; }
+      html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; background: #0d0c0e; }
       #app { position: fixed; inset: 0; }
       canvas { display: block; width: 100%; height: 100%; }
       /* Stats.js panel sits top-left; nudge it so it never hides under a notch. */
       #stats-container { position: fixed; top: 8px; right: 8px; z-index: 100; }
+      /* Boot screen: shown until the world is loaded; doubles as the error card. */
+      #boot { position: fixed; inset: 0; z-index: 200; display: flex; flex-direction: column; align-items: center;
+        justify-content: center; text-align: center; color: #ece6d6; background: #0d0c0e;
+        font-family: system-ui, 'Segoe UI', Roboto, sans-serif; transition: opacity .6s ease; }
+      #boot.is-out { opacity: 0; pointer-events: none; }
+      #boot .wm { font: 800 clamp(64px, 14vw, 120px)/0.9 'Arial Narrow', 'Roboto Condensed', Impact, system-ui, sans-serif;
+        letter-spacing: .02em; text-transform: uppercase; background: linear-gradient(180deg, #fff2d0, #e9c27a 55%, #b98a3a);
+        -webkit-background-clip: text; background-clip: text; color: transparent; }
+      #boot .ed { display: inline-block; margin: 14px 0 26px; padding: 5px 16px 4px; border: 1.5px solid rgba(240,168,40,.75);
+        font: 800 12.5px 'Arial Narrow', 'Roboto Condensed', system-ui, sans-serif; letter-spacing: .34em; text-transform: uppercase; color: #f0a828; }
+      #boot .bar { width: min(280px, 60vw); height: 3px; background: rgba(240,168,40,.18); overflow: hidden; border-radius: 2px; }
+      #boot .bar i { display: block; width: 40%; height: 100%; background: #f0a828; border-radius: 2px; animation: boot-slide 1.4s ease-in-out infinite; }
+      @keyframes boot-slide { 0% { transform: translateX(-100%); } 100% { transform: translateX(250%); } }
+      #boot .msg { margin-top: 14px; font: 600 13px system-ui, sans-serif; letter-spacing: .08em; color: rgba(236,230,214,.55); text-transform: uppercase; }
+      #boot.is-error .bar { display: none; }
+      #boot.is-error .msg { text-transform: none; letter-spacing: 0; font-size: 16px; line-height: 1.6; color: #ece6d6; max-width: 520px; padding: 0 24px; }
+      @media (prefers-reduced-motion: reduce) { #boot .bar i { animation: none; width: 100%; } }
     </style>
   </head>
   <body>
     <div id="app"></div>
+    <div id="boot" aria-live="polite">
+      <div class="wm">Our<br>Story</div>
+      <div class="ed">Anniversary Edition</div>
+      <div class="bar"><i></i></div>
+      <div class="msg">Loading the night…</div>
+    </div>
+    <noscript><div style="position:fixed;inset:0;z-index:300;display:flex;align-items:center;justify-content:center;background:#0d0c0e;color:#ece6d6;font:16px system-ui,sans-serif;text-align:center;padding:24px">
+      This game needs JavaScript. Please enable it, or open the link in Chrome.</div></noscript>
     <div id="stats-container"></div>
     <script type="module" src="/src/main.js"></script>
   </body>

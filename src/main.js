@@ -60,7 +60,18 @@ const EXIT_MAX_SPEED = 2; // m/s — must be nearly stopped to get out
 
 // --- Renderer -------------------------------------------------------------
 const app = document.getElementById('app');
-const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+let renderer;
+try {
+  renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+} catch (err) {
+  const b = document.getElementById('boot');
+  if (b) {
+    b.classList.add('is-error');
+    b.querySelector('.msg').innerHTML = "This laptop's browser couldn't start 3D graphics (WebGL).<br>" +
+      'Try Chrome or Edge, make sure hardware acceleration is on in the browser settings, then refresh.';
+  }
+  throw err;
+}
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -636,7 +647,7 @@ const menu = createMenu({
   },
   onSettingsChange: applySettings,
   onQuit: () => location.reload(), // simplest reliable "quit to title"
-  version: '0.4',
+  version: '1.0',
 });
 applySettings(menu.getSettings());
 
@@ -775,7 +786,11 @@ async function init() {
 
   // Her real voice on the phone, if a recording was dropped in (else null and
   // the typed subtitles carry the call on their own).
-  const callClip = CALL.audioFile ? await audio.loadClip(import.meta.env.BASE_URL + CALL.audioFile) : null;
+  const firstClip = async (files) => {
+    for (const f of files || []) { const c = await audio.loadClip(import.meta.env.BASE_URL + f); if (c) return c; }
+    return null;
+  };
+  const [callClip, declineClip] = await Promise.all([firstClip(CALL.audioFiles), firstClip(CALL.declineAudioFiles)]);
   if (callClip) console.info('[audio] call recording found — she will speak');
 
   // Mission director: HOME → CALL → TAILOR → FLORIST → VENUE → the date.
@@ -784,7 +799,7 @@ async function init() {
     call: {
       caller: PEOPLE.partner.name, lines: CALL.lines, declineLines: CALL.declineLines,
       onAnswer: callClip ? () => { audio.unlock(); return callClip.play(); } : null,
-      onAnswerCallback: null, // the ring-back is text-only; she's not in the mood to be recorded
+      onAnswerCallback: declineClip ? () => { audio.unlock(); return declineClip.play(); } : null,
     },
     getPose: activeXZ,
     stops: { tailor: TAILOR_STOP, florist: FLORIST_STOP, coffee: VENUE },
@@ -793,6 +808,7 @@ async function init() {
   carryParent = avatar.group; // the bouquet attaches here once bought
 
   hud.setVisible(false); // kept hidden behind the title until the game starts
+  bootDone();
   // The game case: redeem the code once on this machine, then straight to the title.
   if (loadSave().redeemed || new URLSearchParams(location.search).has('redeemed')) menu.showTitle();
   else redeem.show(() => { updateSave({ redeemed: true }); menu.showTitle(); });
@@ -1042,8 +1058,34 @@ const loop = createLoop({
     lastRender = now;
     stepRender(alpha, frameDt);
     stats?.end();
+    autoQuality(frameDt);
   },
 });
+
+// --- Automatic quality step-down for weaker laptops ------------------------
+// Watch the real frame rate once the game is running. If it can't hold ~40 fps,
+// drop the render resolution to 1× first (the big win on high-DPI screens),
+// then halve the shadow map. Never goes back up mid-run — steady beats flashy.
+let perfAcc = 0, perfN = 0, perfTier = 0;
+function autoQuality(frameDt) {
+  if (!gameStarted || menu.isOpen || perfTier >= 2) return;
+  perfAcc += frameDt; perfN++;
+  if (perfAcc < 4) return; // judge in 4-second windows
+  const fps = perfN / perfAcc;
+  perfAcc = 0; perfN = 0;
+  if (fps >= 40) return;
+  if (perfTier === 0 && renderer.getPixelRatio() > 1) {
+    renderer.setPixelRatio(1);
+    resize();
+    perfTier = 1;
+    console.info(`[perf] ${fps.toFixed(0)} fps — render scale dropped to 1×`);
+  } else {
+    sun.shadow.mapSize.set(1024, 1024);
+    if (sun.shadow.map) { sun.shadow.map.dispose(); sun.shadow.map = null; }
+    perfTier = 2;
+    console.info(`[perf] ${fps.toFixed(0)} fps — shadow map halved`);
+  }
+}
 
 // Dev-only harness: the automation browser tab runs visibility:hidden, so
 // requestAnimationFrame is paused and nothing moves. This lets a test driver
@@ -1394,4 +1436,24 @@ function buildDevPanel() {
 }
 
 // Kick off asset loading + the loop (deferred so `loop` above is defined).
-init();
+/** The boot card in index.html: fade it once the world is in, or turn it into a plain-English error. */
+function bootDone() {
+  const b = document.getElementById('boot');
+  if (!b) return;
+  b.classList.add('is-out');
+  setTimeout(() => b.remove(), 700);
+}
+function bootFail(why) {
+  const b = document.getElementById('boot');
+  if (!b) return;
+  b.classList.remove('is-out');
+  b.classList.add('is-error');
+  const m = b.querySelector('.msg');
+  if (m) m.innerHTML = why;
+  console.error('[boot]', why);
+}
+init().catch((err) => {
+  console.error(err);
+  bootFail("Something went wrong loading the game.<br>Try refreshing, or open the link in Chrome on a laptop.<br><br>" +
+    `<span style="opacity:.5;font-size:12px">${String(err?.message || err).slice(0, 160)}</span>`);
+});
